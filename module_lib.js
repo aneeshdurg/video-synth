@@ -1,4 +1,3 @@
-const MODULE_IDS = {hue_shift: 1, noise: 2, oscillator: 3, reflect: 4, rotate: 5, zoom: 6, }
 class HueShift extends Function {
     id = 1
     params = {}
@@ -33,7 +32,7 @@ this.params.osc_color = osc_color;
 
             }
         }
-        class Reflect extends Function {
+        class Reflector extends Function {
             id = 4
             params = {}
 
@@ -65,3 +64,4 @@ this.params.zoom_center = zoom_center;
 
             }
         }
+const MODULE_IDS = {module: { class: HueShift },module: { class: Noise },module: { class: Oscillator },module: { class: Reflector },module: { class: Rotate },module: { class: Zoom },}

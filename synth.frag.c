@@ -144,11 +144,11 @@ void oscillator() {
 }
 
 
-/// modulefn: reflect
+/// modulefn: reflector
 uniform float u_reflect_theta; // between 0 and PI for now
 uniform float u_reflect_y;
 
-void reflect() {
+void reflector() {
     vec2 coords = gl_FragCoord.xy;
     vec2 c = coords / u_dimensions;
     c = 2. * c - 1.;
@@ -237,7 +237,7 @@ case 3:
     oscillator();
     break;
 case 4:
-    reflect();
+    reflector();
     break;
 case 5:
     rotate();
