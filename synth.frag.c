@@ -75,7 +75,7 @@ vec3 rgb_to_hsv(vec3 rgb) {
 }
 
 /// modulefn: hue_shift
-uniform float u_hue_shift;
+uniform float u_hue_shift; /// { "start": 0, "end": 360, "default": 180 }
 
 void hue_shift() {
     color_out.rgb = hsv_to_rgb(
@@ -84,9 +84,9 @@ void hue_shift() {
 
 
 /// modulefn: noise
-uniform float u_noise_r;
-uniform float u_noise_g;
-uniform float u_noise_b;
+uniform float u_noise_r; /// { "start": 0, "end": 10000, "default": 0 }
+uniform float u_noise_g; /// { "start": 0, "end": 10000, "default": 0 }
+uniform float u_noise_b; /// { "start": 0, "end": 10000, "default": 0 }
 
 // 2D Random
 float random (in vec2 st, float noise_param) {
@@ -133,9 +133,9 @@ void noise() {
 /// modulefn: oscillator
 
 // sin(dot(f, x) + c) * color
-uniform vec2 u_osc_f;
-uniform float u_osc_c;
-uniform vec3 u_osc_color;
+uniform vec2 u_osc_f; /// { "start": [0, 0], "end": [1, 1], "default": [0.25, 0], "names": ["x", "y"] }
+uniform float u_osc_c; /// { "start": 0, "end": "2 * math.pi", "default": 0 }
+uniform vec3 u_osc_color; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [1, 0, 0], "names": ["r", "g", "b"] }
 
 void oscillator() {
     vec2 coords = gl_FragCoord.xy;
@@ -145,8 +145,8 @@ void oscillator() {
 
 
 /// modulefn: reflector
-uniform float u_reflect_theta; // between 0 and PI for now
-uniform float u_reflect_y;
+uniform float u_reflect_theta; /// { "start": 0, "end": "math.pi", "default": "math.pi / 2" }
+uniform float u_reflect_y; /// { "start": 0, "end": 1, "default": 0 }
 
 void reflector() {
     vec2 coords = gl_FragCoord.xy;
@@ -182,7 +182,7 @@ void reflector() {
 
 
 /// modulefn: rotate
-uniform float u_rotation;
+uniform float u_rotation; /// { "start": 0, "end": "2 * math.pi", "default": 0 }
 
 void rotate() {
     vec2 coords = gl_FragCoord.xy;
@@ -202,8 +202,8 @@ void rotate() {
 
 
 /// modulefn: zoom
-uniform float u_zoom;
-uniform vec2 u_zoom_center;
+uniform float u_zoom; /// { "start": 0, "end": 10, "default": 1 }
+uniform vec2 u_zoom_center;  /// { "start": [0, 0], "end": [1, 1], "default": [0.5, 0.5], "names": ["x", "y"] }
 
 void zoom() {
     vec2 coords = gl_FragCoord.xy / u_dimensions;
