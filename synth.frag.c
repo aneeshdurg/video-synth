@@ -76,10 +76,11 @@ vec3 rgb_to_hsv(vec3 rgb) {
 
 /// modulefn: hue_shift
 uniform float u_hue_shift; /// { "start": 0, "end": 360, "default": 180 }
+uniform float u_saturate_shift; /// { "start": 0, "end": 1, "default": 0 }
 
 void hue_shift() {
     color_out.rgb = hsv_to_rgb(
-        rgb_to_hsv(color_out.rgb) + vec3(u_hue_shift, 0., 0.));
+        rgb_to_hsv(color_out.rgb) + vec3(u_hue_shift, u_saturate_shift, 0.));
 }
 
 
@@ -130,6 +131,40 @@ void noise() {
 }
 
 
+/// modulefn: offset
+
+uniform vec3 u_offsets_x; /// { "start": [-1, -1, -1], "end": [1, 1, 1], "default": [0, 0, 0], "names": ["r", "g", "b"] }
+uniform vec3 u_offsets_y; /// { "start": [-1, -1, -1], "end": [1, 1, 1], "default": [0, 0, 0], "names": ["r", "g", "b"] }
+
+vec2 offset_fix_range(vec2 c) {
+    vec2 res = c;
+    if (res.x > 1.)
+        res.x = 1. - res.x;
+    if (res.x < 0.)
+        res.x = 1. + res.x;
+
+    return res;
+}
+
+void offset() {
+    vec2 coords = gl_FragCoord.xy;
+    vec2 c = coords / u_dimensions;
+
+    vec2 c_r = c + vec2(u_offsets_x.r, u_offsets_y.r);
+    c_r = offset_fix_range(c_r);
+    vec2 c_g = c + vec2(u_offsets_x.g, u_offsets_y.g);
+    c_g = offset_fix_range(c_g);
+    vec2 c_b = c + vec2(u_offsets_x.b, u_offsets_y.b);
+    c_b = offset_fix_range(c_b);
+
+    color_out.r = texelFetch(u_texture, ivec2(c_r * u_tex_dimensions), 0).r;
+    color_out.g = texelFetch(u_texture, ivec2(c_g * u_tex_dimensions), 0).g;
+    color_out.b = texelFetch(u_texture, ivec2(c_b * u_tex_dimensions), 0).b;
+    color_out *= u_feedback;
+    color_out.a = 1.;
+}
+
+
 /// modulefn: oscillator
 
 // sin(dot(f, x) + c) * color
@@ -141,6 +176,20 @@ void oscillator() {
     vec2 coords = gl_FragCoord.xy;
     color_out.xyz += sin(dot(u_osc_f, coords) + u_osc_c) * u_osc_color;
     color_out.a = 1.;
+}
+
+
+/// modulefn: picture
+uniform sampler2D u_picture_texture; /// custom
+uniform vec2 u_picture_dimensions; /// custom
+
+void picture() {
+    vec2 coords = gl_FragCoord.xy;
+    vec2 c = coords / u_dimensions;
+    c.y = 1. - c.y;
+    c *= u_picture_dimensions;
+
+    color_out.xyz += texelFetch(u_picture_texture, ivec2(c), 0).xyz;
 }
 
 
@@ -201,6 +250,44 @@ void rotate() {
 }
 
 
+/// modulefn: swirl
+uniform float u_factor; /// { "start": 0, "end": "2 * math.pi", "default": 0 }
+
+void swirl() {
+    vec2 coords = gl_FragCoord.xy;
+    vec2 c = coords / u_dimensions;
+    c = 2. * c - 1.;
+
+    float r = length(c);
+    float theta = atan(c.y, c.x);
+    theta += r * u_factor;
+    c = r * vec2(sin(theta), cos(theta));
+
+    c  = (c + 1.) / 2.;
+    c *= u_tex_dimensions;
+
+    color_out = vec4(u_feedback * texelFetch(u_texture, ivec2(c), 0).xyz, 1.);
+}
+
+
+/// modulefn: threshold
+
+uniform bool u_theshold_high_r; /// { "default": true }
+uniform bool u_theshold_high_g; /// { "default": true }
+uniform bool u_theshold_high_b; /// { "default": true }
+uniform vec3 u_thresholds; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [0, 0, 0], "names": ["r", "g", "b"] }
+
+void threshold() {
+    color_out.rgb = sign(sign(color_out.rgb - u_thresholds) + 1.);
+    if (u_theshold_high_r)
+        color_out.r = 1. - color_out.r;
+    if (u_theshold_high_g)
+        color_out.g = 1. - color_out.g;
+    if (u_theshold_high_b)
+        color_out.b = 1. - color_out.b;
+}
+
+
 /// modulefn: zoom
 uniform float u_zoom; /// { "start": 0, "end": 10, "default": 1 }
 uniform vec2 u_zoom_center;  /// { "start": [0, 0], "end": [1, 1], "default": [0.5, 0.5], "names": ["x", "y"] }
@@ -234,15 +321,27 @@ case 2:
     noise();
     break;
 case 3:
-    oscillator();
+    offset();
     break;
 case 4:
-    reflector();
+    oscillator();
     break;
 case 5:
-    rotate();
+    picture();
     break;
 case 6:
+    reflector();
+    break;
+case 7:
+    rotate();
+    break;
+case 8:
+    swirl();
+    break;
+case 9:
+    threshold();
+    break;
+case 10:
     zoom();
     break;
 

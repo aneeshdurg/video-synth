@@ -1,3 +1,23 @@
+function createModal(resolver) {
+    const modal = document.createElement('div');
+    modal.addEventListener('click', (e) => {
+        if (e.target != modal)
+            return;
+        resolver(undefined);
+        modal.remove();
+    });
+
+    modal.style.background = "#2b2b2b50";
+    modal.style.position = "absolute";
+    modal.style.left = "0";
+    modal.style.top = "0";
+    modal.style.width = "100%";
+    modal.style.height = "100%";
+
+    document.body.appendChild(modal);
+    return modal;
+}
+
 class Type extends HTMLElement {
     name = ""
     range = []
@@ -17,12 +37,34 @@ class Type extends HTMLElement {
     }
 }
 
+class BoolEntry extends Type {
+    validate(entry) {
+        return true;
+    }
+
+    constructor(defaultValue) {
+        super([0, 0], defaultValue);
+
+        const input = document.createElement('input');
+        input.id = "generate";
+        input.type = 'checkbox';
+        input.checked = defaultValue;
+        input.addEventListener('change', () => {
+            this.value = input.checked;
+            this.dispatchEvent(new Event('change'));
+        });
+
+        this.shadow.appendChild(input);
+    }
+}
+customElements.define('bool-entry', BoolEntry);
+
 class FloatBar extends Type {
     validate(entry) {
         return !isNaN(entry) && entry >= this.range[0] && entry <= this.range[1];
     }
 
-    constructor(range, defaultValue) {
+    constructor(range, defaultValue, supressFunctionGen) {
         super(range, defaultValue);
 
         const container = document.createElement('div');
@@ -39,6 +81,15 @@ class FloatBar extends Type {
         const func_gen = document.createElement('input');
         func_gen.id = "generate";
         func_gen.type = 'checkbox';
+        const func_select = document.createElement('select');
+        const func_modal = document.createElement('button');
+        func_modal.innerText = "Edit function";
+        Object.keys(generators).forEach((k, i) => {
+            const opt = document.createElement('option');
+            opt.value = k;
+            opt.innerText = k;
+            func_select.appendChild(opt);
+        });
 
         const percent = 10 * (this.defaultValue - this.range[0]) / (this.range[1] - this.range[0]);
         slider.style.left = `${percent}em`;
@@ -86,19 +137,47 @@ class FloatBar extends Type {
         this.value = this.defaultValue;
 
         this.generate = false;
+        let func = generators[func_select.value].func;
+        let params = generators[func_select.value].params;
         const f = (time) => {
             if (this.generate) {
-                const value = ((Math.sin(time / 1000) + 1)/2) * (this.range[1] - this.range[0]) + this.range[0];
-                this.value = value;
-                input.value = value;
+                this.value = func(time, this.range, params);
+                input.value = this.value;
                 this.dispatchEvent(new Event('change'));
                 requestAnimationFrame(f);
             }
         }
+        func_select.addEventListener('change', () => {
+            func = generators[func_select.value].func;
+            params = generators[func_select.value].params;
+        });
         func_gen.addEventListener('change', () => {
             this.generate = func_gen.checked;
             if (this.generate)
                 f(0);
+        });
+
+        func_modal.addEventListener('click', async () => {
+            let resolver = null;
+            const p = new Promise(r => { resolver = r; });
+            const modal = createModal(resolver);
+            const generator = new FunctionGenerator(modal, func_select.value, resolver);
+            const value = await p;
+            generator.remove();
+            modal.remove();
+            if (value) {
+                func = value.func;
+                params = value.params;
+                let needs_restart = false;
+                if (!this.generate)
+                    needs_restart = true;
+                this.generate = true;
+                func_gen.checked = true;
+                if (needs_restart)
+                    f(0);
+            } else {
+                // we didn't get a value
+            }
         });
 
         bar.appendChild(slider);
@@ -106,7 +185,11 @@ class FloatBar extends Type {
         container.appendChild(input);
         container.appendChild(document.createElement('br'));
         container.appendChild(gen_label);
-        container.appendChild(func_gen);
+        if (!supressFunctionGen) {
+            container.appendChild(func_gen);
+            container.appendChild(func_select);
+            container.appendChild(func_modal);
+        }
         this.shadow.appendChild(container);
     }
 }
