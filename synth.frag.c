@@ -139,7 +139,7 @@ uniform vec3 u_offsets_y; /// { "start": [-1, -1, -1], "end": [1, 1, 1], "defaul
 vec2 offset_fix_range(vec2 c) {
     vec2 res = c;
     if (res.x > 1.)
-        res.x = 1. - res.x;
+        res.x = res.x - 1.;
     if (res.x < 0.)
         res.x = 1. + res.x;
 
@@ -288,6 +288,25 @@ void threshold() {
 }
 
 
+/// modulefn: webcam
+uniform sampler2D u_webcam_texture; /// custom
+uniform vec2 u_webcam_dimensions; /// custom
+uniform bool u_webcam_invert_x; ///  { "default": true }
+uniform bool u_webcam_invert_y; ///  { "default": true }
+
+void webcam() {
+    vec2 coords = gl_FragCoord.xy;
+    vec2 c = coords / u_dimensions;
+    if (u_webcam_invert_y)
+        c.y = 1. - c.y;
+    if (u_webcam_invert_x)
+        c.x = 1. - c.x;
+    c *= u_webcam_dimensions;
+
+    color_out.xyz += texelFetch(u_webcam_texture, ivec2(c), 0).xyz;
+}
+
+
 /// modulefn: zoom
 uniform float u_zoom; /// { "start": 0, "end": 10, "default": 1 }
 uniform vec2 u_zoom_center;  /// { "start": [0, 0], "end": [1, 1], "default": [0.5, 0.5], "names": ["x", "y"] }
@@ -342,6 +361,9 @@ case 9:
     threshold();
     break;
 case 10:
+    webcam();
+    break;
+case 11:
     zoom();
     break;
 

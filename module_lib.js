@@ -252,8 +252,38 @@ this.params.thresholds = thresholds;
             }
         }
         customElements.define('synth-threshold', ThresholdElement);
-        class Zoom extends Function {
+        class Webcam extends Function {
             id = 10
+            params = {}
+
+            constructor(webcam_texture, webcam_dimensions, webcam_invert_x, webcam_invert_y, feedback) {
+                super(feedback || 0);
+                this.params.webcam_texture = webcam_texture;
+this.params.webcam_dimensions = webcam_dimensions;
+this.params.webcam_invert_x = webcam_invert_x;
+this.params.webcam_invert_y = webcam_invert_y;
+
+            }
+        }
+
+        class WebcamElement extends SynthElementBase {
+            get_title() {
+                return "Webcam";
+            }
+
+            get_type() {
+                return Webcam;
+            }
+
+            get_args() {
+                return {
+                    webcam_texture: new Webcam_webcam_texture(this.synth),webcam_dimensions: new Webcam_webcam_dimensions(this.synth),webcam_invert_x: new BoolEntry(true),webcam_invert_y: new BoolEntry(true)
+                }
+            }
+        }
+        customElements.define('synth-webcam', WebcamElement);
+        class Zoom extends Function {
+            id = 11
             params = {}
 
             constructor(zoom, zoom_center, feedback) {
@@ -280,4 +310,4 @@ this.params.zoom_center = zoom_center;
             }
         }
         customElements.define('synth-zoom', ZoomElement);
-const MODULE_IDS = {"hue shift": "HueShiftElement","noise": "NoiseElement","offset": "OffsetElement","oscillator": "OscillatorElement","picture": "PictureElement","reflector": "ReflectorElement","rotate": "RotateElement","swirl": "SwirlElement","threshold": "ThresholdElement","zoom": "ZoomElement",}
+const MODULE_IDS = {"hue shift": "HueShiftElement","noise": "NoiseElement","offset": "OffsetElement","oscillator": "OscillatorElement","picture": "PictureElement","reflector": "ReflectorElement","rotate": "RotateElement","swirl": "SwirlElement","threshold": "ThresholdElement","webcam": "WebcamElement","zoom": "ZoomElement",}
