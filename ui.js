@@ -227,6 +227,8 @@ class FloatBar extends Type {
     }
 
     load(data) {
+        if (data === undefined)
+            return;
         console.log("loading float", data);
         this.set_value(data.value);
 
@@ -286,6 +288,8 @@ class VecEntry extends Type {
     }
 
     load(data) {
+        if (data === undefined)
+            return;
         console.log("loading vec", data);
         for (let name of Object.keys(data)) {
             const i = this.names.indexOf(name);

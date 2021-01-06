@@ -144,10 +144,11 @@ this.params.picture_dimensions = picture_dimensions;
             id = 6
             params = {}
 
-            constructor(reflect_theta, reflect_y, feedback) {
+            constructor(reflect_theta, reflect_y, reflect_x, feedback) {
                 super(feedback || 0);
                 this.params.reflect_theta = reflect_theta;
 this.params.reflect_y = reflect_y;
+this.params.reflect_x = reflect_x;
 
             }
         }
@@ -163,7 +164,7 @@ this.params.reflect_y = reflect_y;
 
             get_args() {
                 return {
-                    reflect_theta: new FloatBar([0.0,3.141592653589793], 1.5707963267948966),reflect_y: new FloatBar([0.0,1.0], 0.0)
+                    reflect_theta: new FloatBar([0.0,6.283185307179586], 1.5707963267948966),reflect_y: new FloatBar([-1.0,1.0], 0.0),reflect_x: new FloatBar([-1.0,1.0], 0.0)
                 }
             }
         }
