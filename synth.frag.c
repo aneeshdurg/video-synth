@@ -327,7 +327,6 @@ void zoom() {
 
 
 
-// TODO split up each module into files
 void main() {
     vec2 coords = gl_FragCoord.xy;
     vec2 c = coords * u_tex_dimensions / u_dimensions;
