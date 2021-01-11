@@ -21,7 +21,7 @@ this.params.saturate_shift = saturate_shift;
 
             get_args() {
                 return {
-                    hue_shift: new FloatBar([0.0,360.0], 180.0),saturate_shift: new FloatBar([0.0,1.0], 0.0)
+                    hue_shift: new FloatBar([0,360], 180),saturate_shift: new FloatBar([0,1], 0)
                 }
             }
         }
@@ -50,7 +50,7 @@ this.params.noise_b = noise_b;
 
             get_args() {
                 return {
-                    noise_r: new FloatBar([0.0,10000.0], 0.0),noise_g: new FloatBar([0.0,10000.0], 0.0),noise_b: new FloatBar([0.0,10000.0], 0.0)
+                    noise_r: new FloatBar([0,10000], 0),noise_g: new FloatBar([0,10000], 0),noise_b: new FloatBar([0,10000], 0)
                 }
             }
         }
@@ -78,7 +78,7 @@ this.params.offsets_y = offsets_y;
 
             get_args() {
                 return {
-                    offsets_x: new VecEntry(3, ["r","g","b"], [[-1.0, 1.0],[-1.0, 1.0],[-1.0, 1.0],], [0.0,0.0,0.0]),offsets_y: new VecEntry(3, ["r","g","b"], [[-1.0, 1.0],[-1.0, 1.0],[-1.0, 1.0],], [0.0,0.0,0.0])
+                    offsets_x: new VecEntry(3, ["r","g","b"], [[-1, 1],[-1, 1],[-1, 1],], [0,0,0]),offsets_y: new VecEntry(3, ["r","g","b"], [[-1, 1],[-1, 1],[-1, 1],], [0,0,0])
                 }
             }
         }
@@ -107,7 +107,7 @@ this.params.osc_color = osc_color;
 
             get_args() {
                 return {
-                    osc_f: new VecEntry(2, ["x","y"], [[0.0, 1.0],[0.0, 1.0],], [0.25,0.0]),osc_c: new FloatBar([0.0,6.283185307179586], 0.0),osc_color: new VecEntry(3, ["r","g","b"], [[0.0, 1.0],[0.0, 1.0],[0.0, 1.0],], [1.0,0.0,0.0])
+                    osc_f: new VecEntry(2, ["x","y"], [[0, 1],[0, 1],], [0.25,0]),osc_c: new FloatBar([0,6.283185307179586], 0),osc_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0])
                 }
             }
         }
@@ -164,7 +164,7 @@ this.params.reflect_x = reflect_x;
 
             get_args() {
                 return {
-                    reflect_theta: new FloatBar([0.0,6.283185307179586], 1.5707963267948966),reflect_y: new FloatBar([-1.0,1.0], 0.0),reflect_x: new FloatBar([-1.0,1.0], 0.0)
+                    reflect_theta: new FloatBar([0,6.283185307179586], 1.5707963267948966),reflect_y: new FloatBar([-1,1], 0),reflect_x: new FloatBar([-1,1], 0)
                 }
             }
         }
@@ -191,7 +191,7 @@ class RotateElement extends SynthElementBase {
 
     get_args() {
         return {
-            rotation: new FloatBar([0.0,6.283185307179586], 0.0)
+            rotation: new FloatBar([0,6.283185307179586], 0)
         }
     }
 }
@@ -218,7 +218,7 @@ class SwirlElement extends SynthElementBase {
 
     get_args() {
         return {
-            factor: new FloatBar([0.0,6.283185307179586], 0.0)
+            factor: new FloatBar([0,6.283185307179586], 0)
         }
     }
 }
@@ -248,13 +248,41 @@ this.params.thresholds = thresholds;
 
             get_args() {
                 return {
-                    theshold_high_r: new BoolEntry(true),theshold_high_g: new BoolEntry(true),theshold_high_b: new BoolEntry(true),thresholds: new VecEntry(3, ["r","g","b"], [[0.0, 1.0],[0.0, 1.0],[0.0, 1.0],], [0.0,0.0,0.0])
+                    theshold_high_r: new BoolEntry(true),theshold_high_g: new BoolEntry(true),theshold_high_b: new BoolEntry(true),thresholds: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [0,0,0])
                 }
             }
         }
         customElements.define('synth-threshold', ThresholdElement);
-        class Webcam extends Function {
+        class Tile extends Function {
             id = 10
+            params = {}
+
+            constructor(tile_x, tile_y, feedback) {
+                super(feedback || 0);
+                this.params.tile_x = tile_x;
+this.params.tile_y = tile_y;
+
+            }
+        }
+
+        class TileElement extends SynthElementBase {
+            get_title() {
+                return "Tile";
+            }
+
+            get_type() {
+                return Tile;
+            }
+
+            get_args() {
+                return {
+                    tile_x: new IntEntry([1,100], 1),tile_y: new IntEntry([1,100], 1)
+                }
+            }
+        }
+        customElements.define('synth-tile', TileElement);
+        class Webcam extends Function {
+            id = 11
             params = {}
 
             constructor(webcam_texture, webcam_dimensions, webcam_invert_x, webcam_invert_y, feedback) {
@@ -284,7 +312,7 @@ this.params.webcam_invert_y = webcam_invert_y;
         }
         customElements.define('synth-webcam', WebcamElement);
         class Zoom extends Function {
-            id = 11
+            id = 12
             params = {}
 
             constructor(zoom, zoom_center, feedback) {
@@ -306,9 +334,9 @@ this.params.zoom_center = zoom_center;
 
             get_args() {
                 return {
-                    zoom: new FloatBar([0.0,10.0], 1.0),zoom_center: new VecEntry(2, ["x","y"], [[0.0, 1.0],[0.0, 1.0],], [0.5,0.5])
+                    zoom: new FloatBar([0,10], 1),zoom_center: new VecEntry(2, ["x","y"], [[0, 1],[0, 1],], [0.5,0.5])
                 }
             }
         }
         customElements.define('synth-zoom', ZoomElement);
-const MODULE_IDS = {"hue shift": "HueShiftElement","noise": "NoiseElement","offset": "OffsetElement","oscillator": "OscillatorElement","picture": "PictureElement","reflector": "ReflectorElement","rotate": "RotateElement","swirl": "SwirlElement","threshold": "ThresholdElement","webcam": "WebcamElement","zoom": "ZoomElement",}
+const MODULE_IDS = {"hue shift": "HueShiftElement","noise": "NoiseElement","offset": "OffsetElement","oscillator": "OscillatorElement","picture": "PictureElement","reflector": "ReflectorElement","rotate": "RotateElement","swirl": "SwirlElement","threshold": "ThresholdElement","tile": "TileElement","webcam": "WebcamElement","zoom": "ZoomElement",}
