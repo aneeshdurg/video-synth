@@ -15,6 +15,8 @@ precision mediump int;
 uniform vec2 u_dimensions;
 uniform vec2 u_tex_dimensions;
 uniform sampler2D u_texture;
+uniform float u_transform_scale;
+uniform vec2 u_transform_center;
 uniform int u_function;
 uniform int u_stage;
 
@@ -74,7 +76,11 @@ vec3 rgb_to_hsv(vec3 rgb) {
     return vec3(h, s, v);
 }
 
+vec2 t_coords;
+
 /// modulefn: hue_shift
+/// moduletag: color
+
 uniform float u_hue_shift; /// { "start": 0, "end": 360, "default": 180 }
 uniform float u_saturate_shift; /// { "start": 0, "end": 1, "default": 0 }
 
@@ -85,6 +91,8 @@ void hue_shift() {
 
 
 /// modulefn: noise
+/// moduletag: generator
+
 uniform float u_noise_r; /// { "start": 0, "end": 10000, "default": 0 }
 uniform float u_noise_g; /// { "start": 0, "end": 10000, "default": 0 }
 uniform float u_noise_b; /// { "start": 0, "end": 10000, "default": 0 }
@@ -99,7 +107,7 @@ float random (in vec2 st, float noise_param) {
 // 2D Noise based on Morgan McGuire @morgan3d
 // https://www.shadertoy.com/view/4dS3Wd
 float noise_1d (float noise_param) {
-    vec2 st = gl_FragCoord.xy / u_dimensions;
+    vec2 st = t_coords.xy / u_dimensions;
     st *= 5.;
 
     vec2 i = floor(st);
@@ -132,6 +140,7 @@ void noise() {
 
 
 /// modulefn: offset
+/// moduletag: color
 
 uniform vec3 u_offsets_x; /// { "start": [-1, -1, -1], "end": [1, 1, 1], "default": [0, 0, 0], "names": ["r", "g", "b"] }
 uniform vec3 u_offsets_y; /// { "start": [-1, -1, -1], "end": [1, 1, 1], "default": [0, 0, 0], "names": ["r", "g", "b"] }
@@ -143,11 +152,16 @@ vec2 offset_fix_range(vec2 c) {
     if (res.x < 0.)
         res.x = 1. + res.x;
 
+    if (res.y > 1.)
+        res.y = res.y - 1.;
+    if (res.y < 0.)
+        res.y = 1. + res.y;
+
     return res;
 }
 
 void offset() {
-    vec2 coords = gl_FragCoord.xy;
+    vec2 coords = t_coords.xy;
     vec2 c = coords / u_dimensions;
 
     vec2 c_r = c + vec2(u_offsets_x.r, u_offsets_y.r);
@@ -166,6 +180,7 @@ void offset() {
 
 
 /// modulefn: oscillator
+/// moduletag: generator
 
 // sin(dot(f, x) + c) * color
 uniform vec2 u_osc_f; /// { "start": [0, 0], "end": [1, 1], "default": [0.25, 0], "names": ["x", "y"] }
@@ -173,18 +188,20 @@ uniform float u_osc_c; /// { "start": 0, "end": "2 * math.pi", "default": 0 }
 uniform vec3 u_osc_color; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [1, 0, 0], "names": ["r", "g", "b"] }
 
 void oscillator() {
-    vec2 coords = gl_FragCoord.xy;
+    vec2 coords = t_coords.xy;
     color_out.xyz += sin(dot(u_osc_f, coords) + u_osc_c) * u_osc_color;
     color_out.a = 1.;
 }
 
 
 /// modulefn: picture
+/// moduletag: generator
+
 uniform sampler2D u_picture_texture; /// custom
 uniform vec2 u_picture_dimensions; /// custom
 
 void picture() {
-    vec2 coords = gl_FragCoord.xy;
+    vec2 coords = t_coords.xy;
     vec2 c = coords / u_dimensions;
     c.y = 1. - c.y;
     c *= u_picture_dimensions;
@@ -194,12 +211,14 @@ void picture() {
 
 
 /// modulefn: reflector
+/// moduletag: space
+
 uniform float u_reflect_theta; /// { "start": 0, "end": "2 * math.pi", "default": "math.pi / 2" }
 uniform float u_reflect_y; /// { "start": -1, "end": 1, "default": 0 }
 uniform float u_reflect_x; /// { "start": -1, "end": 1, "default": 0 }
 
 void reflector() {
-    vec2 coords = gl_FragCoord.xy;
+    vec2 coords = t_coords.xy;
     vec2 c = coords / u_dimensions;
     c = 2. * c - 1.;
     c.y -= u_reflect_y;
@@ -234,10 +253,12 @@ void reflector() {
 
 
 /// modulefn: rotate
+/// moduletag: space
+
 uniform float u_rotation; /// { "start": 0, "end": "2 * math.pi", "default": 0 }
 
 void rotate() {
-    vec2 coords = gl_FragCoord.xy;
+    vec2 coords = t_coords.xy;
     vec2 c = coords / u_dimensions;
     c = 2. * c - 1.;
 
@@ -254,6 +275,7 @@ void rotate() {
 
 
 /// modulefn: superformula
+/// moduletag: generator
 
 uniform vec3 u_sf_color; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [1, 0, 0], "names": ["r", "g", "b"] }
 uniform float u_sf_m; /// { "start": 1, "end": 10, "default": 1 }
@@ -262,7 +284,7 @@ uniform float u_sf_thickness; /// { "start": 0, "end": 1, "default": 0.5 }
 uniform bool u_sf_smooth_edges; /// { "default": true }
 
 void superformula() {
-    vec2 coords = gl_FragCoord.xy;
+    vec2 coords = t_coords.xy;
     vec2 c = coords / u_dimensions;
     c = 2. * c - 1.;
 
@@ -293,10 +315,12 @@ void superformula() {
 
 
 /// modulefn: swirl
+/// moduletag: space
+
 uniform float u_factor; /// { "start": 0, "end": "2 * math.pi", "default": 0 }
 
 void swirl() {
-    vec2 coords = gl_FragCoord.xy;
+    vec2 coords = t_coords.xy;
     vec2 c = coords / u_dimensions;
     c = 2. * c - 1.;
 
@@ -313,6 +337,7 @@ void swirl() {
 
 
 /// modulefn: threshold
+/// moduletag: color
 
 uniform bool u_theshold_high_r; /// { "default": true }
 uniform bool u_theshold_high_g; /// { "default": true }
@@ -331,12 +356,13 @@ void threshold() {
 
 
 /// modulefn: tile
+/// moduletag: space
 
 uniform int u_tile_x; /// { "start": 1, "end": 100, "default": 1 }
 uniform int u_tile_y; /// { "start": 1, "end": 100, "default": 1 }
 
 void tile() {
-    vec2 coords = gl_FragCoord.xy;
+    vec2 coords = t_coords.xy;
     float tile_x_size = u_dimensions.x / float(u_tile_x);
     float tile_y_size = u_dimensions.y / float(u_tile_y);
 
@@ -350,13 +376,15 @@ void tile() {
 
 
 /// modulefn: webcam
+/// moduletag: generator
+
 uniform sampler2D u_webcam_texture; /// custom
 uniform vec2 u_webcam_dimensions; /// custom
 uniform bool u_webcam_invert_x; ///  { "default": true }
 uniform bool u_webcam_invert_y; ///  { "default": true }
 
 void webcam() {
-    vec2 coords = gl_FragCoord.xy;
+    vec2 coords = t_coords.xy;
     vec2 c = coords / u_dimensions;
     if (u_webcam_invert_y)
         c.y = 1. - c.y;
@@ -369,11 +397,13 @@ void webcam() {
 
 
 /// modulefn: zoom
+/// moduletag: space
+
 uniform float u_zoom; /// { "start": 0, "end": 10, "default": 1 }
 uniform vec2 u_zoom_center;  /// { "start": [0, 0], "end": [1, 1], "default": [0.5, 0.5], "names": ["x", "y"] }
 
 void zoom() {
-    vec2 coords = gl_FragCoord.xy / u_dimensions;
+    vec2 coords = t_coords.xy / u_dimensions;
 
     coords = coords - u_zoom_center;
     if (u_zoom > 0.)
@@ -390,6 +420,15 @@ void main() {
     vec2 coords = gl_FragCoord.xy;
     vec2 c = coords * u_tex_dimensions / u_dimensions;
     color_out = vec4(u_feedback * texelFetch(u_texture, ivec2(c), 0).xyz, 1.);
+
+    t_coords = gl_FragCoord.xy / u_dimensions - vec2(0.5) + u_transform_center;
+
+    t_coords -= vec2(0.5);
+    t_coords /= u_transform_scale;
+    t_coords += vec2(0.5);
+
+    t_coords *= u_dimensions;
+    // TODO u_transform_scale
 
     switch(u_function) {
     case FN_RENDER:

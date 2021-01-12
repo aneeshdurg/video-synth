@@ -4,6 +4,18 @@ class Synth {
     stages = [];
     stageModules = {};
 
+    transform = {
+        center: [ 0.5, 0.5 ],
+        scale: 1,
+    }
+
+    reset_transform() {
+        this.transform = {
+            center: [ 0.5, 0.5 ],
+            scale: 1,
+        }
+    }
+
     enable = true;
 
     constructor(canvas, fragShader) {
@@ -29,11 +41,22 @@ class Synth {
                 return;
             }
 
+            if (stage == 0)
+                this.reset_transform();
+
             if (fn_params instanceof Synth || fn_params instanceof ModuleElement) {
                 fn_params.stages.forEach((name, stage_) => {
                     const fn_params_ = fn_params.stageModules[name];
-                    process_stages(fn_params_, stage + stage_);
+                    process_stages(fn_params_, stage + 1 + stage_);
                 });
+                return;
+            } else if (fn_params instanceof TransformElement) {
+                if (fn_params.params["clear transform"]) {
+                    this.reset_transform();
+                } else {
+                    this.transform.scale = fn_params.params.scale;
+                    this.transform.center = [...fn_params.params.center];
+                }
                 return;
             }
 
@@ -42,6 +65,8 @@ class Synth {
                 u_dimensions: this.dimensions,
                 u_tex_dimensions: this.dimensions,
                 u_texture: this.fbs.src(),
+                u_transform_center: this.transform.center,
+                u_transform_scale: this.transform.scale,
                 u_function: fn_params.id,
                 u_stage: stage,
                 u_feedback: fn_params.feedback,
@@ -55,7 +80,7 @@ class Synth {
             this.fbs.flipflop();
         };
 
-        process_stages(this, 0);
+        process_stages(this, -1);
 
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
         twgl.setUniforms(this.programInfo, {
@@ -108,18 +133,52 @@ function setup_controler() {
     });
 }
 
+const add_new_tags = ["generator", "space", "color"];
+let current_add_new_tag = 0;
 function setup_add_new_stage(ui, synth) {
-    const add_new_select = document.getElementById("add_new_select");
+    const update_add_new = (new_tag) => {
+        new_tag = (new_tag + add_new_tags.length) % add_new_tags.length;
+
+        const old_obj = document.getElementById(`add_new_${add_new_tags[current_add_new_tag]}_container`);
+        old_obj.style.display = "none";
+        const new_obj = document.getElementById(`add_new_${add_new_tags[new_tag]}_container`);
+        new_obj.style.display = "";
+
+        current_add_new_tag = new_tag;
+    };
+
+    document.getElementById("add_new-prev").addEventListener('click', () => {
+        update_add_new(current_add_new_tag - 1);
+    });
+    document.getElementById("add_new-next").addEventListener('click', () => {
+        update_add_new(current_add_new_tag + 1);
+    });
+
+    const buttons = {};
+    const selectors = {};
+    for (let tag of add_new_tags) {
+        buttons[tag] = document.getElementById(`add_new_${tag}`);
+        selectors[tag] = document.getElementById(`add_new_${tag}_select`);
+        buttons[tag].addEventListener('click', () => {
+            const stageElem = eval(selectors[tag].value);
+            ui.appendChild(new stageElem(synth));
+        });
+    }
+
     for (let module of Object.keys(MODULE_IDS)) {
+        const module_info = MODULE_IDS[module];
+
         const opt = document.createElement('option');
         opt.innerText = module;
-        opt.value = MODULE_IDS[module];
-        add_new_select.appendChild(opt);
+        opt.value = module_info.class;
+
+        selectors[module_info.tag].appendChild(opt);
     }
-    document.getElementById("add_new").addEventListener('click', () => {
-        const stageElem = eval(add_new_select.value);
-        ui.appendChild(new stageElem(synth));
-    });
+
+    const opt = document.createElement('option');
+    opt.innerText = 'transform';
+    opt.value = 'TransformElement';
+    selectors['space'].appendChild(opt);
 }
 
 async function synth_main(canvas, root) {
