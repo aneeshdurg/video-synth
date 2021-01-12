@@ -196,8 +196,39 @@ class RotateElement extends SynthElementBase {
     }
 }
 customElements.define('synth-rotate', RotateElement);
+        class Superformula extends Function {
+            id = 8
+            params = {}
+
+            constructor(sf_color, sf_m, sf_n, sf_thickness, sf_smooth_edges, feedback) {
+                super(feedback || 0);
+                this.params.sf_color = sf_color;
+this.params.sf_m = sf_m;
+this.params.sf_n = sf_n;
+this.params.sf_thickness = sf_thickness;
+this.params.sf_smooth_edges = sf_smooth_edges;
+
+            }
+        }
+
+        class SuperformulaElement extends SynthElementBase {
+            get_title() {
+                return "Superformula";
+            }
+
+            get_type() {
+                return Superformula;
+            }
+
+            get_args() {
+                return {
+                    sf_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0]),sf_m: new FloatBar([1,10], 1),sf_n: new VecEntry(3, ["n1","n2","n3"], [[0, 20],[0, 20],[0, 20],], [20,20,20]),sf_thickness: new FloatBar([0,1], 0.5),sf_smooth_edges: new BoolEntry(true)
+                }
+            }
+        }
+        customElements.define('synth-superformula', SuperformulaElement);
 class Swirl extends Function {
-    id = 8
+    id = 9
     params = {}
 
     constructor(factor, feedback) {
@@ -224,7 +255,7 @@ class SwirlElement extends SynthElementBase {
 }
 customElements.define('synth-swirl', SwirlElement);
         class Threshold extends Function {
-            id = 9
+            id = 10
             params = {}
 
             constructor(theshold_high_r, theshold_high_g, theshold_high_b, thresholds, feedback) {
@@ -254,7 +285,7 @@ this.params.thresholds = thresholds;
         }
         customElements.define('synth-threshold', ThresholdElement);
         class Tile extends Function {
-            id = 10
+            id = 11
             params = {}
 
             constructor(tile_x, tile_y, feedback) {
@@ -282,7 +313,7 @@ this.params.tile_y = tile_y;
         }
         customElements.define('synth-tile', TileElement);
         class Webcam extends Function {
-            id = 11
+            id = 12
             params = {}
 
             constructor(webcam_texture, webcam_dimensions, webcam_invert_x, webcam_invert_y, feedback) {
@@ -312,7 +343,7 @@ this.params.webcam_invert_y = webcam_invert_y;
         }
         customElements.define('synth-webcam', WebcamElement);
         class Zoom extends Function {
-            id = 12
+            id = 13
             params = {}
 
             constructor(zoom, zoom_center, feedback) {
@@ -339,4 +370,4 @@ this.params.zoom_center = zoom_center;
             }
         }
         customElements.define('synth-zoom', ZoomElement);
-const MODULE_IDS = {"hue shift": "HueShiftElement","noise": "NoiseElement","offset": "OffsetElement","oscillator": "OscillatorElement","picture": "PictureElement","reflector": "ReflectorElement","rotate": "RotateElement","swirl": "SwirlElement","threshold": "ThresholdElement","tile": "TileElement","webcam": "WebcamElement","zoom": "ZoomElement",}
+const MODULE_IDS = {"hue shift": "HueShiftElement","noise": "NoiseElement","offset": "OffsetElement","oscillator": "OscillatorElement","picture": "PictureElement","reflector": "ReflectorElement","rotate": "RotateElement","superformula": "SuperformulaElement","swirl": "SwirlElement","threshold": "ThresholdElement","tile": "TileElement","webcam": "WebcamElement","zoom": "ZoomElement",}
