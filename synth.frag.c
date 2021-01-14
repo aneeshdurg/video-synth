@@ -17,10 +17,12 @@ uniform vec2 u_tex_dimensions;
 uniform sampler2D u_texture;
 uniform float u_transform_scale;
 uniform vec2 u_transform_center;
+uniform float u_transform_rotation;
 uniform int u_function;
 uniform int u_stage;
 
 uniform float u_feedback;
+uniform bool u_constrain_to_transform;
 
 out vec4 color_out;
 
@@ -78,6 +80,29 @@ vec3 rgb_to_hsv(vec3 rgb) {
 
 vec2 t_coords;
 
+/// modulefn: enhance
+/// moduletag: color
+
+uniform vec3 u_enhance; /// { "start": [0, 0, 0], "end": [10, 10, 10], "default": [1, 1, 1], "names": ["r", "g", "b"] }
+
+void enhance() {
+    color_out.rgb *= u_enhance;
+}
+
+
+/// modulefn: gamma_correct
+/// moduletag: color
+
+uniform float u_gamma_correction; /// { "start": 2, "end": 4, "default": 2 }
+
+void gamma_correct() {
+    float r = pow(color_out.r, 1. / u_gamma_correction);
+    float g = pow(color_out.g, 1. / u_gamma_correction);
+    float b = pow(color_out.b, 1. / u_gamma_correction);
+    color_out.xyz = vec3(r, g, b);
+}
+
+
 /// modulefn: hue_shift
 /// moduletag: color
 
@@ -87,6 +112,14 @@ uniform float u_saturate_shift; /// { "start": 0, "end": 1, "default": 0 }
 void hue_shift() {
     color_out.rgb = hsv_to_rgb(
         rgb_to_hsv(color_out.rgb) + vec3(u_hue_shift, u_saturate_shift, 0.));
+}
+
+
+/// modulefn: invert_color
+/// moduletag: color
+
+void invert_color() {
+    color_out.rgb = 1. - color_out.rgb;
 }
 
 
@@ -207,6 +240,21 @@ void picture() {
     c *= u_picture_dimensions;
 
     color_out.xyz += texelFetch(u_picture_texture, ivec2(c), 0).xyz;
+}
+
+
+/// modulefn: recolor
+/// moduletag: color
+
+uniform vec3 u_recolor_new_r; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [1, 0, 0], "names": ["r", "g", "b"] }
+uniform vec3 u_recolor_new_g; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [0, 1, 0], "names": ["r", "g", "b"] }
+uniform vec3 u_recolor_new_b; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [0, 0, 1], "names": ["r", "g", "b"] }
+
+void recolor() {
+    color_out.xyz =
+        color_out.r * u_recolor_new_r +
+        color_out.g * u_recolor_new_g +
+        color_out.b * u_recolor_new_b;
 }
 
 
@@ -339,18 +387,18 @@ void swirl() {
 /// modulefn: threshold
 /// moduletag: color
 
-uniform bool u_theshold_high_r; /// { "default": true }
-uniform bool u_theshold_high_g; /// { "default": true }
-uniform bool u_theshold_high_b; /// { "default": true }
+uniform bool u_threshold_high_r; /// { "default": true }
+uniform bool u_threshold_high_g; /// { "default": true }
+uniform bool u_threshold_high_b; /// { "default": true }
 uniform vec3 u_thresholds; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [0, 0, 0], "names": ["r", "g", "b"] }
 
 void threshold() {
     color_out.rgb = sign(sign(color_out.rgb - u_thresholds) + 1.);
-    if (u_theshold_high_r)
+    if (u_threshold_high_r)
         color_out.r = 1. - color_out.r;
-    if (u_theshold_high_g)
+    if (u_threshold_high_g)
         color_out.g = 1. - color_out.g;
-    if (u_theshold_high_b)
+    if (u_threshold_high_b)
         color_out.b = 1. - color_out.b;
 }
 
@@ -422,54 +470,76 @@ void main() {
     color_out = vec4(u_feedback * texelFetch(u_texture, ivec2(c), 0).xyz, 1.);
 
     t_coords = gl_FragCoord.xy / u_dimensions - vec2(0.5) + u_transform_center;
-
     t_coords -= vec2(0.5);
-    t_coords /= u_transform_scale;
-    t_coords += vec2(0.5);
 
+    t_coords /= u_transform_scale;
+    mat2 rot_mat = mat2(
+            cos(u_transform_rotation), sin(u_transform_rotation),
+            -sin(u_transform_rotation), cos(u_transform_rotation));
+    t_coords = rot_mat * t_coords;
+
+    t_coords += vec2(0.5);
     t_coords *= u_dimensions;
-    // TODO u_transform_scale
+
+    if (u_constrain_to_transform) {
+        if (t_coords.x < 0. || t_coords.x > u_dimensions.x ||
+                t_coords.y < 0. || t_coords.y > u_dimensions.y) {
+            return;
+        }
+    }
 
     switch(u_function) {
     case FN_RENDER:
         break;
 case 1:
-    hue_shift();
+    enhance();
     break;
 case 2:
-    noise();
+    gamma_correct();
     break;
 case 3:
-    offset();
+    hue_shift();
     break;
 case 4:
-    oscillator();
+    invert_color();
     break;
 case 5:
-    picture();
+    noise();
     break;
 case 6:
-    reflector();
+    offset();
     break;
 case 7:
-    rotate();
+    oscillator();
     break;
 case 8:
-    superformula();
+    picture();
     break;
 case 9:
-    swirl();
+    recolor();
     break;
 case 10:
-    threshold();
+    reflector();
     break;
 case 11:
-    tile();
+    rotate();
     break;
 case 12:
-    webcam();
+    superformula();
     break;
 case 13:
+    swirl();
+    break;
+case 14:
+    threshold();
+    break;
+case 15:
+    tile();
+    break;
+case 16:
+    webcam();
+    break;
+case 17:
     zoom();
     break;
 
@@ -478,4 +548,6 @@ case 13:
         color_out = vec4(1., 0., 1., 1.);
         break;
     }
+
+   color_out = clamp(color_out, -1., 1.);
 }
