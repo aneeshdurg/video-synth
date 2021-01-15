@@ -243,6 +243,29 @@ void picture() {
 }
 
 
+/// modulefn: pixelate
+/// moduletag: space
+
+uniform int u_pixelate_factor; /// { "start": 0, "end": 500, "default": 10 }
+
+void pixelate() {
+    vec2 coords = t_coords.xy;
+    float f = float(u_pixelate_factor);
+    coords = floor(coords / f) * f;
+    vec3 color = vec3(0);
+    for (int i = 0; i < u_pixelate_factor; i++) {
+        for (int j = 0; j < u_pixelate_factor; j++) {
+            color += texelFetch(
+                u_texture,
+                ivec2(coords) + ivec2(i, j),
+                0
+            ).xyz / f;
+        }
+    }
+    color_out = vec4(u_feedback * texelFetch(u_texture, ivec2(coords), 0).xyz, 1.);
+}
+
+
 /// modulefn: recolor
 /// moduletag: color
 
@@ -255,6 +278,29 @@ void recolor() {
         color_out.r * u_recolor_new_r +
         color_out.g * u_recolor_new_g +
         color_out.b * u_recolor_new_b;
+}
+
+
+/// modulefn: reduce_colors
+/// moduletag: color
+
+uniform sampler2D u_reduce_colors_data; /// custom
+uniform int u_reduce_colors_count; /// custom
+
+void reduce_colors() {
+    vec3 closest_color = vec3(0.);
+    float dist = -1.;
+    for (int i = 0; i < u_reduce_colors_count; i++) {
+        vec3 candidate = texelFetch(u_reduce_colors_data, ivec2(i, 0), 0).rgb;
+        vec3 dists = abs(candidate - color_out.rgb);
+        float curr_dist = dists.r + dists.g + dists.b;
+        if (dist < 0. || curr_dist < dist) {
+            dist = curr_dist;
+            closest_color = candidate;
+        }
+    }
+
+    color_out.xyz = closest_color;
 }
 
 
@@ -516,30 +562,36 @@ case 8:
     picture();
     break;
 case 9:
-    recolor();
+    pixelate();
     break;
 case 10:
-    reflector();
+    recolor();
     break;
 case 11:
-    rotate();
+    reduce_colors();
     break;
 case 12:
-    superformula();
+    reflector();
     break;
 case 13:
-    swirl();
+    rotate();
     break;
 case 14:
-    threshold();
+    superformula();
     break;
 case 15:
-    tile();
+    swirl();
     break;
 case 16:
-    webcam();
+    threshold();
     break;
 case 17:
+    tile();
+    break;
+case 18:
+    webcam();
+    break;
+case 19:
     zoom();
     break;
 

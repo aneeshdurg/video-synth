@@ -220,8 +220,35 @@ this.params.picture_dimensions = picture_dimensions;
             }
         }
         customElements.define('synth-picture', PictureElement);
+class Pixelate extends Function {
+    id = 9
+    params = {}
+
+    constructor(pixelate_factor, feedback) {
+        super(feedback || 0);
+        this.params.pixelate_factor = pixelate_factor;
+
+    }
+}
+
+class PixelateElement extends SynthElementBase {
+    get_title() {
+        return "Pixelate";
+    }
+
+    get_type() {
+        return Pixelate;
+    }
+
+    get_args() {
+        return {
+            pixelate_factor: new IntEntry([0,500], 10)
+        }
+    }
+}
+customElements.define('synth-pixelate', PixelateElement);
         class Recolor extends Function {
-            id = 9
+            id = 10
             params = {}
 
             constructor(recolor_new_r, recolor_new_g, recolor_new_b, feedback) {
@@ -249,8 +276,36 @@ this.params.recolor_new_b = recolor_new_b;
             }
         }
         customElements.define('synth-recolor', RecolorElement);
+        class ReduceColors extends Function {
+            id = 11
+            params = {}
+
+            constructor(reduce_colors_data, reduce_colors_count, feedback) {
+                super(feedback || 0);
+                this.params.reduce_colors_data = reduce_colors_data;
+this.params.reduce_colors_count = reduce_colors_count;
+
+            }
+        }
+
+        class ReduceColorsElement extends SynthElementBase {
+            get_title() {
+                return "ReduceColors";
+            }
+
+            get_type() {
+                return ReduceColors;
+            }
+
+            get_args() {
+                return {
+                    reduce_colors_data: new ReduceColors_reduce_colors_data(this.synth),reduce_colors_count: new ReduceColors_reduce_colors_count(this.synth)
+                }
+            }
+        }
+        customElements.define('synth-reducecolors', ReduceColorsElement);
         class Reflector extends Function {
-            id = 10
+            id = 12
             params = {}
 
             constructor(reflect_theta, reflect_y, reflect_x, feedback) {
@@ -279,7 +334,7 @@ this.params.reflect_x = reflect_x;
         }
         customElements.define('synth-reflector', ReflectorElement);
 class Rotate extends Function {
-    id = 11
+    id = 13
     params = {}
 
     constructor(rotation, feedback) {
@@ -306,7 +361,7 @@ class RotateElement extends SynthElementBase {
 }
 customElements.define('synth-rotate', RotateElement);
         class Superformula extends Function {
-            id = 12
+            id = 14
             params = {}
 
             constructor(sf_color, sf_m, sf_n, sf_thickness, sf_smooth_edges, feedback) {
@@ -337,7 +392,7 @@ this.params.sf_smooth_edges = sf_smooth_edges;
         }
         customElements.define('synth-superformula', SuperformulaElement);
 class Swirl extends Function {
-    id = 13
+    id = 15
     params = {}
 
     constructor(factor, feedback) {
@@ -364,7 +419,7 @@ class SwirlElement extends SynthElementBase {
 }
 customElements.define('synth-swirl', SwirlElement);
         class Threshold extends Function {
-            id = 14
+            id = 16
             params = {}
 
             constructor(threshold_high_r, threshold_high_g, threshold_high_b, thresholds, feedback) {
@@ -394,7 +449,7 @@ this.params.thresholds = thresholds;
         }
         customElements.define('synth-threshold', ThresholdElement);
         class Tile extends Function {
-            id = 15
+            id = 17
             params = {}
 
             constructor(tile_x, tile_y, feedback) {
@@ -422,7 +477,7 @@ this.params.tile_y = tile_y;
         }
         customElements.define('synth-tile', TileElement);
         class Webcam extends Function {
-            id = 16
+            id = 18
             params = {}
 
             constructor(webcam_texture, webcam_dimensions, webcam_invert_x, webcam_invert_y, feedback) {
@@ -452,7 +507,7 @@ this.params.webcam_invert_y = webcam_invert_y;
         }
         customElements.define('synth-webcam', WebcamElement);
         class Zoom extends Function {
-            id = 17
+            id = 19
             params = {}
 
             constructor(zoom, zoom_center, feedback) {
@@ -479,4 +534,4 @@ this.params.zoom_center = zoom_center;
             }
         }
         customElements.define('synth-zoom', ZoomElement);
-const MODULE_IDS = {"enhance": {class: "EnhanceElement", tag: "color"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"recolor": {class: "RecolorElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
+const MODULE_IDS = {"enhance": {class: "EnhanceElement", tag: "color"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
