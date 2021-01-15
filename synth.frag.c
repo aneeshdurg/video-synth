@@ -80,6 +80,25 @@ vec3 rgb_to_hsv(vec3 rgb) {
 
 vec2 t_coords;
 
+/// modulefn: blur
+/// moduletag: space
+
+uniform int u_blur_stride_x; /// { "start": 1, "end": 100, "default": 1 }
+uniform int u_blur_stride_y; /// { "start": 1, "end": 100, "default": 1 }
+
+void blur() {
+    ivec2 c = ivec2(t_coords.xy);
+    vec3 color = vec3(0);
+    float size = float(u_blur_stride_y * u_blur_stride_x * 4);
+    for (int y = -u_blur_stride_y + 1; y < u_blur_stride_y; y++) {
+        for (int x = -u_blur_stride_x + 1; x < u_blur_stride_x; x++) {
+            color += texelFetch(u_texture, c + ivec2(x, y), 0).xyz / size ;
+        }
+    }
+    color_out = vec4(u_feedback * color, 1.);
+}
+
+
 /// modulefn: enhance
 /// moduletag: color
 
@@ -538,60 +557,63 @@ void main() {
     case FN_RENDER:
         break;
 case 1:
-    enhance();
+    blur();
     break;
 case 2:
-    gamma_correct();
+    enhance();
     break;
 case 3:
-    hue_shift();
+    gamma_correct();
     break;
 case 4:
-    invert_color();
+    hue_shift();
     break;
 case 5:
-    noise();
+    invert_color();
     break;
 case 6:
-    offset();
+    noise();
     break;
 case 7:
-    oscillator();
+    offset();
     break;
 case 8:
-    picture();
+    oscillator();
     break;
 case 9:
-    pixelate();
+    picture();
     break;
 case 10:
-    recolor();
+    pixelate();
     break;
 case 11:
-    reduce_colors();
+    recolor();
     break;
 case 12:
-    reflector();
+    reduce_colors();
     break;
 case 13:
-    rotate();
+    reflector();
     break;
 case 14:
-    superformula();
+    rotate();
     break;
 case 15:
-    swirl();
+    superformula();
     break;
 case 16:
-    threshold();
+    swirl();
     break;
 case 17:
-    tile();
+    threshold();
     break;
 case 18:
-    webcam();
+    tile();
     break;
 case 19:
+    webcam();
+    break;
+case 20:
     zoom();
     break;
 
