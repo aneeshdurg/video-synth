@@ -22,7 +22,7 @@ async function getFile(url) {
 
     let fileContents = "";
     const reader = resp.body.getReader();
-    done = false;
+    let done = false;
     while (!done) {
         let fileBody = await reader.read();
         if (!fileBody.value) {
