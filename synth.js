@@ -226,8 +226,6 @@ async function loadStaticSynth(canvas, root, datapath) {
     const synth = new Synth(canvas, fragShader)
     synth.run();
 
-    const ui = document.createElement('div');
-    // TODO non-global modules
-    load_meta_modules(savedata.modules, ui, synth);
-    loaddata(data.stages, ui, synth);
+    // note that meta-modules don't need to be loaded
+    loaddata(data.stages, document.createElement('div'), synth);
 }
