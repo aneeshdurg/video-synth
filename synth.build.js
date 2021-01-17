@@ -989,7 +989,7 @@ class SynthStageBase extends HTMLElement {
         this.shadow = shadow;
 
         const box = document.createElement('div');
-        box.style = "border: solid 1px; padding: 0.5em";
+        box.style = "border: solid 1px; padding: 0.5em; border-radius: 25px";
         const title = document.createElement('h2')
         title.innerText = this.get_title();
         box.appendChild(title);
@@ -2351,6 +2351,24 @@ async function synth_main(canvas, root) {
     const synth = new Synth(canvas, fragShader);
     window.synth = synth;
     synth.run();
+
+    const sidebar = document.getElementById("sidebar");
+    sidebar.style.display = "none";
+    const burgerbtn = document.getElementById("burgerbtn");
+    const title = document.getElementById("title");
+
+    const showmenu = () => {
+        sidebar.style.display = "";
+        burgerbtn.style.display = "none";
+    };
+    const hidemenu = () => {
+        sidebar.style.display = "none";
+        burgerbtn.style.display = "";
+    };
+
+    burgerbtn.addEventListener('click', showmenu);
+    title.addEventListener('click', hidemenu);
+    document.getElementById("display-container").addEventListener("click", hidemenu);
 
     const ui = document.getElementById("ui-container");
 
