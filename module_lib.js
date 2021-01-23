@@ -534,8 +534,40 @@ this.params.tile_y = tile_y;
             }
         }
         defineEl('synth-tile', TileElement);
-        class Webcam extends Function {
+        class Wavy extends Function {
             id = 20
+            params = {}
+
+            constructor(wavy_freq_x, wavy_c_x, wavy_strength_x, wavy_freq_y, wavy_c_y, wavy_strength_y, feedback) {
+                super(feedback || 0);
+                this.params.wavy_freq_x = wavy_freq_x;
+this.params.wavy_c_x = wavy_c_x;
+this.params.wavy_strength_x = wavy_strength_x;
+this.params.wavy_freq_y = wavy_freq_y;
+this.params.wavy_c_y = wavy_c_y;
+this.params.wavy_strength_y = wavy_strength_y;
+
+            }
+        }
+
+        class WavyElement extends SynthElementBase {
+            get_title() {
+                return "Wavy";
+            }
+
+            get_type() {
+                return Wavy;
+            }
+
+            get_args() {
+                return {
+                    wavy_freq_x: new FloatBar([0,100], 1),wavy_c_x: new FloatBar([0,6.283185307179586], 0),wavy_strength_x: new FloatBar([0,100], 1),wavy_freq_y: new FloatBar([0,100], 1),wavy_c_y: new FloatBar([0,6.283185307179586], 0),wavy_strength_y: new FloatBar([0,100], 1)
+                }
+            }
+        }
+        defineEl('synth-wavy', WavyElement);
+        class Webcam extends Function {
+            id = 21
             params = {}
 
             constructor(webcam_texture, webcam_dimensions, webcam_invert_x, webcam_invert_y, feedback) {
@@ -565,7 +597,7 @@ this.params.webcam_invert_y = webcam_invert_y;
         }
         defineEl('synth-webcam', WebcamElement);
         class Zoom extends Function {
-            id = 21
+            id = 22
             params = {}
 
             constructor(zoom, zoom_center, feedback) {
@@ -592,4 +624,4 @@ this.params.zoom_center = zoom_center;
             }
         }
         defineEl('synth-zoom', ZoomElement);
-const MODULE_IDS = {"blur": {class: "BlurElement", tag: "space"},"enhance": {class: "EnhanceElement", tag: "color"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"ripple": {class: "RippleElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
+const MODULE_IDS = {"blur": {class: "BlurElement", tag: "space"},"enhance": {class: "EnhanceElement", tag: "color"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"ripple": {class: "RippleElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"wavy": {class: "WavyElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
