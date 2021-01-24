@@ -2,17 +2,6 @@ function defineEl(name, class_) {
     customElements.define(name + (window.globalprefix || ""), class_);
 }
 
-class Function {
-    id = 0;
-    feedback = 0;
-    params = {};
-    enable = true;
-
-    constructor(feedback) {
-        this.feedback = feedback;
-    }
-}
-
 function createModal(resolver) {
     const modal = document.createElement('div');
     modal.addEventListener('click', (e) => {
@@ -182,24 +171,26 @@ class FloatBar extends Type {
         });
 
         this.generate = false;
-        this.func = generators[this.func_select.value].func;
-        this.params = generators[this.func_select.value].params;
-
-        this.func_select.addEventListener('change', () => {
+        const set_func = () => {
             this.func = generators[this.func_select.value].func;
-            this.params = generators[this.func_select.value].params;
-        });
+            this.params = new generators[this.func_select.value].params();
+        };
+        set_func();
+
+        this.func_select.addEventListener('change', set_func);
         this.func_gen.addEventListener('change', () => {
             this.generate = this.func_gen.checked;
-            // if (this.generate)
-            //     this.start_generation(0);
         });
 
         func_modal.addEventListener('click', async () => {
-            let resolver = null;
+            let resolver = undefined;
             const p = new Promise(r => { resolver = r; });
             const modal = createModal(resolver);
-            const generator = new FunctionGenerator(modal, this.func_select.value, resolver);
+            let curr_params = undefined;
+            if (this.generate)
+                curr_params = this.params;
+            const generator = new FunctionGenerator(
+                modal, this.func_select.value, curr_params, resolver);
             const params = await p;
             generator.remove();
             modal.remove();
@@ -207,14 +198,8 @@ class FloatBar extends Type {
                 return;
 
             this.params = params;
-            let needs_restart = false;
-            if (!this.generate)
-                needs_restart = true;
             this.generate = true;
             this.func_gen.checked = true;
-            // TODO remove needs restart?
-            // if (needs_restart)
-            //     this.start_generation(0);
         });
 
         container.appendChild(this.slider);
@@ -232,13 +217,6 @@ class FloatBar extends Type {
     step(time) {
         if (this.generate)
             this.set_value(this.func(time, this.range, this.params));
-    }
-
-    start_generation(time) {
-        if (this.generate) {
-            this.set_value(this.func(time, this.range, this.params));
-            requestAnimationFrame(this.start_generation.bind(this));
-        }
     }
 
     save() {
@@ -263,7 +241,7 @@ class FloatBar extends Type {
         this.set_value(data.value);
 
         if (data.generate) {
-            this.params = new GenParams();
+            this.params = new generators[this.func_select.value].params();
             this.params.load(data.params);
 
             this.func_select.value = data.func;
@@ -271,7 +249,6 @@ class FloatBar extends Type {
             this.func_gen.checked = true;
 
             this.generate = true;
-            this.start_generation(0);
         }
     }
 }
@@ -333,10 +310,8 @@ class VecEntry extends Type {
     load(data) {
         if (data === undefined)
             return;
-        // console.log("loading vec", data);
         for (let name of Object.keys(data)) {
             const i = this.names.indexOf(name);
-            // TODO validate i
             this.floats[i].load(data[name]);
         }
     }

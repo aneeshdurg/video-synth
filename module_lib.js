@@ -15,7 +15,7 @@ this.params.blur_stride_y = blur_stride_y;
                 return "Blur";
             }
 
-            get_type() {
+            get_fn() {
                 return Blur;
             }
 
@@ -42,7 +42,7 @@ class EnhanceElement extends SynthElementBase {
         return "Enhance";
     }
 
-    get_type() {
+    get_fn() {
         return Enhance;
     }
 
@@ -69,7 +69,7 @@ class GammaCorrectElement extends SynthElementBase {
         return "GammaCorrect";
     }
 
-    get_type() {
+    get_fn() {
         return GammaCorrect;
     }
 
@@ -97,7 +97,7 @@ this.params.saturate_shift = saturate_shift;
                 return "HueShift";
             }
 
-            get_type() {
+            get_fn() {
                 return HueShift;
             }
 
@@ -123,7 +123,7 @@ class InvertColorElement extends SynthElementBase {
         return "InvertColor";
     }
 
-    get_type() {
+    get_fn() {
         return InvertColor;
     }
 
@@ -152,7 +152,7 @@ this.params.noise_b = noise_b;
                 return "Noise";
             }
 
-            get_type() {
+            get_fn() {
                 return Noise;
             }
 
@@ -180,7 +180,7 @@ this.params.offsets_y = offsets_y;
                 return "Offset";
             }
 
-            get_type() {
+            get_fn() {
                 return Offset;
             }
 
@@ -209,7 +209,7 @@ this.params.osc_color = osc_color;
                 return "Oscillator";
             }
 
-            get_type() {
+            get_fn() {
                 return Oscillator;
             }
 
@@ -237,7 +237,7 @@ this.params.picture_dimensions = picture_dimensions;
                 return "Picture";
             }
 
-            get_type() {
+            get_fn() {
                 return Picture;
             }
 
@@ -264,7 +264,7 @@ class PixelateElement extends SynthElementBase {
         return "Pixelate";
     }
 
-    get_type() {
+    get_fn() {
         return Pixelate;
     }
 
@@ -293,7 +293,7 @@ this.params.recolor_new_b = recolor_new_b;
                 return "Recolor";
             }
 
-            get_type() {
+            get_fn() {
                 return Recolor;
             }
 
@@ -321,7 +321,7 @@ this.params.reduce_colors_count = reduce_colors_count;
                 return "ReduceColors";
             }
 
-            get_type() {
+            get_fn() {
                 return ReduceColors;
             }
 
@@ -350,7 +350,7 @@ this.params.reflect_x = reflect_x;
                 return "Reflector";
             }
 
-            get_type() {
+            get_fn() {
                 return Reflector;
             }
 
@@ -380,7 +380,7 @@ this.params.ripple_center = ripple_center;
                 return "Ripple";
             }
 
-            get_type() {
+            get_fn() {
                 return Ripple;
             }
 
@@ -407,7 +407,7 @@ class RotateElement extends SynthElementBase {
         return "Rotate";
     }
 
-    get_type() {
+    get_fn() {
         return Rotate;
     }
 
@@ -438,7 +438,7 @@ this.params.sf_smooth_edges = sf_smooth_edges;
                 return "Superformula";
             }
 
-            get_type() {
+            get_fn() {
                 return Superformula;
             }
 
@@ -465,7 +465,7 @@ class SwirlElement extends SynthElementBase {
         return "Swirl";
     }
 
-    get_type() {
+    get_fn() {
         return Swirl;
     }
 
@@ -495,7 +495,7 @@ this.params.thresholds = thresholds;
                 return "Threshold";
             }
 
-            get_type() {
+            get_fn() {
                 return Threshold;
             }
 
@@ -523,7 +523,7 @@ this.params.tile_y = tile_y;
                 return "Tile";
             }
 
-            get_type() {
+            get_fn() {
                 return Tile;
             }
 
@@ -555,7 +555,7 @@ this.params.wavy_strength_y = wavy_strength_y;
                 return "Wavy";
             }
 
-            get_type() {
+            get_fn() {
                 return Wavy;
             }
 
@@ -585,7 +585,7 @@ this.params.webcam_invert_y = webcam_invert_y;
                 return "Webcam";
             }
 
-            get_type() {
+            get_fn() {
                 return Webcam;
             }
 
@@ -613,7 +613,7 @@ this.params.zoom_center = zoom_center;
                 return "Zoom";
             }
 
-            get_type() {
+            get_fn() {
                 return Zoom;
             }
 
