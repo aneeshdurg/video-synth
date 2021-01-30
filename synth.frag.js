@@ -100,6 +100,44 @@ void blur() {
 }
 
 
+/// modulefn: checkerfill
+/// moduletag: space
+
+uniform float u_checkerfill_strength; /// { "start": -1, "end": 10, "default": 2 }
+uniform int u_checkerfill_size; /// { "start": 1, "end": 100, "default": 5 }
+
+void checkerfill() {
+    vec2 coords = t_coords.xy / u_dimensions;
+    vec2 c = 2. * coords - 1.;
+
+    float r = length(c);
+    float theta = atan(c.y, c.x);
+
+    vec3 lumc = vec3(0.2126, 0.7152, 0.0722);
+    float lum = dot(color_out.rgb, lumc);
+    float z = u_checkerfill_strength * lum;
+
+    // c = c - (u_ripple_center - 0.5);
+    if (z > 0.)
+        c /= z;
+    // c = c + (u_ripple_center - 0.5);
+
+    c = (c + 1.) / 2.;
+    c *= u_tex_dimensions;
+
+    ivec2 ic = ivec2(c);
+
+    int m = 0;
+    if ((ic.x / u_checkerfill_size) % 2 == 0)
+        m += 1;
+    if ((ic.y / u_checkerfill_size) % 2 == 0)
+        m += 1;
+    m = m % 2;
+
+    color_out = vec4(float(m) * vec3(1.), 1.);
+}
+
+
 /// modulefn: enhance
 /// moduletag: color
 
@@ -120,6 +158,45 @@ void gamma_correct() {
     float g = pow(color_out.g, 1. / u_gamma_correction);
     float b = pow(color_out.b, 1. / u_gamma_correction);
     color_out.xyz = vec3(r, g, b);
+}
+
+
+/// modulefn: greyscale
+/// moduletag: color
+
+uniform vec3 u_greyscale_luminance; /// { "start": [0,0,0], "end": [1,1,1], "default": [0.2126, 0.7152, 0.0722], "names": ["r", "g", "b"] }
+
+void greyscale() {
+    vec2 coords = t_coords.xy;
+    vec3 color = u_feedback * texelFetch(u_texture, ivec2(coords), 0).xyz;
+    color_out.rgb = vec3(dot(color.rgb, u_greyscale_luminance));
+}
+
+
+/// modulefn: halftone
+/// moduletag: space
+
+uniform int u_halftone_factor; /// { "start": 0, "end": 500, "default": 10 }
+uniform bool u_halftone_invert; /// { "default": false }
+uniform float u_halftone_strength; /// { "start": 0, "end": 2, "default": 1 }
+
+void halftone() {
+    vec2 coords = t_coords.xy;
+    float f = float(u_halftone_factor);
+    vec2 f_coords = floor(coords / f) * f + f / 2.;
+    vec3 color = texelFetch(u_texture, ivec2(f_coords), 0).xyz;
+    vec3 lumc = vec3(0.2126, 0.7152, 0.0722);
+    float lum = dot(color.rgb, lumc);
+    float intensity = length(coords - f_coords) / (sqrt(2.) * f / 2.);
+    if (intensity < u_halftone_strength * lum)
+        intensity = 1.;
+    else
+        intensity = 0.;
+    if (u_halftone_invert)
+        intensity = 1. - intensity;
+    color *= intensity;
+
+    color_out = vec4(u_feedback * color, 1.);
 }
 
 
@@ -620,66 +697,75 @@ case 1:
     blur();
     break;
 case 2:
-    enhance();
+    checkerfill();
     break;
 case 3:
-    gamma_correct();
+    enhance();
     break;
 case 4:
-    hue_shift();
+    gamma_correct();
     break;
 case 5:
-    invert_color();
+    greyscale();
     break;
 case 6:
-    noise();
+    halftone();
     break;
 case 7:
-    offset();
+    hue_shift();
     break;
 case 8:
-    oscillator();
+    invert_color();
     break;
 case 9:
-    picture();
+    noise();
     break;
 case 10:
-    pixelate();
+    offset();
     break;
 case 11:
-    recolor();
+    oscillator();
     break;
 case 12:
-    reduce_colors();
+    picture();
     break;
 case 13:
-    reflector();
+    pixelate();
     break;
 case 14:
-    ripple();
+    recolor();
     break;
 case 15:
-    rotate();
+    reduce_colors();
     break;
 case 16:
-    superformula();
+    reflector();
     break;
 case 17:
-    swirl();
+    ripple();
     break;
 case 18:
-    threshold();
+    rotate();
     break;
 case 19:
-    tile();
+    superformula();
     break;
 case 20:
-    wavy();
+    swirl();
     break;
 case 21:
-    webcam();
+    threshold();
     break;
 case 22:
+    tile();
+    break;
+case 23:
+    wavy();
+    break;
+case 24:
+    webcam();
+    break;
+case 25:
     zoom();
     break;
 

@@ -288,6 +288,44 @@ void blur() {
 }
 
 
+/// modulefn: checkerfill
+/// moduletag: space
+
+uniform float u_checkerfill_strength; /// { "start": -1, "end": 10, "default": 2 }
+uniform int u_checkerfill_size; /// { "start": 1, "end": 100, "default": 5 }
+
+void checkerfill() {
+    vec2 coords = t_coords.xy / u_dimensions;
+    vec2 c = 2. * coords - 1.;
+
+    float r = length(c);
+    float theta = atan(c.y, c.x);
+
+    vec3 lumc = vec3(0.2126, 0.7152, 0.0722);
+    float lum = dot(color_out.rgb, lumc);
+    float z = u_checkerfill_strength * lum;
+
+    // c = c - (u_ripple_center - 0.5);
+    if (z > 0.)
+        c /= z;
+    // c = c + (u_ripple_center - 0.5);
+
+    c = (c + 1.) / 2.;
+    c *= u_tex_dimensions;
+
+    ivec2 ic = ivec2(c);
+
+    int m = 0;
+    if ((ic.x / u_checkerfill_size) % 2 == 0)
+        m += 1;
+    if ((ic.y / u_checkerfill_size) % 2 == 0)
+        m += 1;
+    m = m % 2;
+
+    color_out = vec4(float(m) * vec3(1.), 1.);
+}
+
+
 /// modulefn: enhance
 /// moduletag: color
 
@@ -308,6 +346,45 @@ void gamma_correct() {
     float g = pow(color_out.g, 1. / u_gamma_correction);
     float b = pow(color_out.b, 1. / u_gamma_correction);
     color_out.xyz = vec3(r, g, b);
+}
+
+
+/// modulefn: greyscale
+/// moduletag: color
+
+uniform vec3 u_greyscale_luminance; /// { "start": [0,0,0], "end": [1,1,1], "default": [0.2126, 0.7152, 0.0722], "names": ["r", "g", "b"] }
+
+void greyscale() {
+    vec2 coords = t_coords.xy;
+    vec3 color = u_feedback * texelFetch(u_texture, ivec2(coords), 0).xyz;
+    color_out.rgb = vec3(dot(color.rgb, u_greyscale_luminance));
+}
+
+
+/// modulefn: halftone
+/// moduletag: space
+
+uniform int u_halftone_factor; /// { "start": 0, "end": 500, "default": 10 }
+uniform bool u_halftone_invert; /// { "default": false }
+uniform float u_halftone_strength; /// { "start": 0, "end": 2, "default": 1 }
+
+void halftone() {
+    vec2 coords = t_coords.xy;
+    float f = float(u_halftone_factor);
+    vec2 f_coords = floor(coords / f) * f + f / 2.;
+    vec3 color = texelFetch(u_texture, ivec2(f_coords), 0).xyz;
+    vec3 lumc = vec3(0.2126, 0.7152, 0.0722);
+    float lum = dot(color.rgb, lumc);
+    float intensity = length(coords - f_coords) / (sqrt(2.) * f / 2.);
+    if (intensity < u_halftone_strength * lum)
+        intensity = 1.;
+    else
+        intensity = 0.;
+    if (u_halftone_invert)
+        intensity = 1. - intensity;
+    color *= intensity;
+
+    color_out = vec4(u_feedback * color, 1.);
 }
 
 
@@ -808,66 +885,75 @@ case 1:
     blur();
     break;
 case 2:
-    enhance();
+    checkerfill();
     break;
 case 3:
-    gamma_correct();
+    enhance();
     break;
 case 4:
-    hue_shift();
+    gamma_correct();
     break;
 case 5:
-    invert_color();
+    greyscale();
     break;
 case 6:
-    noise();
+    halftone();
     break;
 case 7:
-    offset();
+    hue_shift();
     break;
 case 8:
-    oscillator();
+    invert_color();
     break;
 case 9:
-    picture();
+    noise();
     break;
 case 10:
-    pixelate();
+    offset();
     break;
 case 11:
-    recolor();
+    oscillator();
     break;
 case 12:
-    reduce_colors();
+    picture();
     break;
 case 13:
-    reflector();
+    pixelate();
     break;
 case 14:
-    ripple();
+    recolor();
     break;
 case 15:
-    rotate();
+    reduce_colors();
     break;
 case 16:
-    superformula();
+    reflector();
     break;
 case 17:
-    swirl();
+    ripple();
     break;
 case 18:
-    threshold();
+    rotate();
     break;
 case 19:
-    tile();
+    superformula();
     break;
 case 20:
-    wavy();
+    swirl();
     break;
 case 21:
-    webcam();
+    threshold();
     break;
 case 22:
+    tile();
+    break;
+case 23:
+    wavy();
+    break;
+case 24:
+    webcam();
+    break;
+case 25:
     zoom();
     break;
 
@@ -883,6 +969,18 @@ case 22:
 // ---------- END build/synth.frag.js ------
 
 // ---------- ui.js ----------
+// defined for syntax highlighting purposes
+const html = String.raw;
+// https://medium.com/@trukrs/tagged-template-literal-for-html-templates-4820cf5538f9
+function createElement(markup) {
+    const temp = document.createElement('div')
+    temp.innerHTML = markup
+    const frag = document.createDocumentFragment()
+    const children = Array.prototype.slice.apply(temp.childNodes)
+    children.map(el => frag.appendChild(el))
+    return frag
+}
+
 function defineEl(name, class_) {
     customElements.define(name + (window.globalprefix || ""), class_);
 }
@@ -917,7 +1015,11 @@ class Type extends HTMLElement {
     constructor(range, defaultValue) {
         super();
         this.range = range;
+        if (this.range === null || this.range === undefined)
+            this.range = eval(this.getAttribute("range"));
         this.defaultValue = defaultValue;
+        if (this.defaultValue === null || this.defaultValue === undefined)
+            this.defaultValue =  eval(this.getAttribute("defaultValue"))
         this.shadow = this.attachShadow({mode: 'open'});
     }
 
@@ -935,16 +1037,15 @@ class BoolEntry extends Type {
     constructor(defaultValue) {
         super([0, 0], defaultValue);
 
-        this.input = document.createElement('input');
-        this.input.id = "generate";
-        this.input.type = 'checkbox';
+        this.shadow.appendChild(createElement(html`
+            <input type="checkbox"></input>
+        `));
+        this.input = this.shadow.querySelector("input");
         this.input.checked = defaultValue;
         this.input.addEventListener('change', () => {
             this.value = this.input.checked;
             this.dispatchEvent(new Event('change'));
         });
-
-        this.shadow.appendChild(this.input);
     }
 
     save() {
@@ -952,7 +1053,6 @@ class BoolEntry extends Type {
     }
 
     load(data) {
-        // console.log("loading bool", data);
         this.value = data;
         this.input.checked = data;
         this.dispatchEvent(new Event('change'));
@@ -964,12 +1064,19 @@ class Slider extends Type {
     constructor(range, defaultValue) {
         super(range, defaultValue);
 
-        const container = document.createElement('div');
-        container.style = "padding-bottom: 0.5em;"
-        const bar = document.createElement('div');
-        bar.style = "background: black; width: 10em; height: 1em;";
-        this.slider = document.createElement('div');
-        this.slider.style = "background: white; height: 1em; width: 1%; position: relative; left: 0em";
+        this.shadow.appendChild(createElement(html`
+            <div style="padding-bottom: 0.5em;"> <!-- TODO use template + <style> ? -->
+                <div id="bar" style="background: black; width: 10em; height: 1em;">
+                    <div
+                        id="slider"
+                        style="background: white; width: 1%; height: 1em; position: relative; left: 0em">
+                    </div>
+                </div>
+            </div>
+        `));
+
+        const bar = this.shadow.querySelector("#bar");
+        this.slider = this.shadow.querySelector("#slider");
 
         const handler = (e) => {
             if (e.target != bar)
@@ -984,10 +1091,6 @@ class Slider extends Type {
         };
         bar.addEventListener('mousemove', (e) => { if (e.buttons & 1) handler(e); });
         bar.addEventListener('touchmove', handler);
-
-        bar.appendChild(this.slider);
-        container.appendChild(bar);
-        this.shadow.appendChild(container);
     }
 
     set_value(value) {
@@ -1016,15 +1119,27 @@ class FloatBar extends Type {
     constructor(range, defaultValue, supressFunctionGen) {
         super(range, defaultValue);
 
-        const container = document.createElement('div');
+        this.shadow.appendChild(createElement(html`
+            <div>
+                <slider-elem range="[${this.range}]" defaultValue="${this.defaultValue}"></slider-elem>
+                <input
+                    id="floatinp"
+                    style="box-shadow: none;"
+                    type="number"
+                    min="${this.range[0]}"
+                    max="${this.range[1]}"
+                    step="${(this.range[1] - this.range[0]) / 1000}"></input>
+                <div id="functiongen">
+                    <label for="generate">function: </label>
+                    <input id="generate" type="checkbox"></input>
+                    <select></select>
+                    <button>Edit function</button>
+                </div>
+            </div>
+        `));
 
-        this.slider = new Slider(range, defaultValue);
-        this.input = document.createElement('input');
-        this.input.style.boxShadow = "none";
-        this.input.type = "number";
-        this.input.min = this.range[0];
-        this.input.max = this.range[1];
-        this.input.step = (this.range[1] - this.range[0]) / 1000;
+        this.slider = this.shadow.querySelector("slider-elem");
+        this.input = this.shadow.querySelector("#floatinp");
 
         this._set_value(this.defaultValue);
 
@@ -1039,16 +1154,11 @@ class FloatBar extends Type {
         });
         this.slider.addEventListener('change', () => { this.set_value(this.slider.value); });
 
-        const gen_label = document.createElement('label');
-        gen_label.for = "generate";
-        gen_label.innerText = "function: ";
-        this.func_gen = document.createElement('input');
-        this.func_gen.id = "generate";
-        this.func_gen.type = 'checkbox';
-        this.func_select = document.createElement('select');
-        const func_modal = document.createElement('button');
-        func_modal.innerText = "Edit function";
-        Object.keys(generators).forEach((k, i) => {
+        const funcgen_container = this.shadow.querySelector("#functiongen");
+        this.func_gen = funcgen_container.querySelector("#generate");
+        const func_modal = funcgen_container.querySelector("button");
+        this.func_select = funcgen_container.querySelector("select");
+        Object.keys(generators).forEach(k => {
             const opt = document.createElement('option');
             opt.value = k;
             opt.innerText = k;
@@ -1087,16 +1197,8 @@ class FloatBar extends Type {
             this.func_gen.checked = true;
         });
 
-        container.appendChild(this.slider);
-        container.appendChild(this.input);
-        container.appendChild(document.createElement('br'));
-        if (!supressFunctionGen) {
-            container.appendChild(gen_label);
-            container.appendChild(this.func_gen);
-            container.appendChild(this.func_select);
-            container.appendChild(func_modal);
-        }
-        this.shadow.appendChild(container);
+        if (supressFunctionGen)
+            funcgen_container.style.display = "none";
     }
 
     step(time) {
@@ -1122,7 +1224,6 @@ class FloatBar extends Type {
     load(data) {
         if (data === undefined)
             return;
-        // console.log("loading float", data);
         this.set_value(data.value);
 
         if (data.generate) {
@@ -1161,27 +1262,26 @@ class VecEntry extends Type {
         this.names = names;
 
         for (let i = 0; i < this.nelem; i++) {
-            const entry = new FloatBar(this.range[i], this.defaultValue[i])
-            entry.addEventListener('change', () => {
+            this.shadow.appendChild(createElement(html`
+                <label for="${names[i]}">${names[i]}: </label>
+                <float-bar
+                    id="${names[i]}"
+                    range="[${this.range[i]}]"
+                    defaultValue="${this.defaultValue[i]}"></float-bar>
+            `));
+        }
+
+        this.value = this.defaultValue;
+
+        this.floats = Array.from(this.shadow.querySelectorAll("float-bar"));
+        for (let float of this.floats) {
+            float.addEventListener('change', () => {
                 for (let i = 0; i < this.nelem; i++) {
                     this.value[i] = this.floats[i].value;
                 }
                 this.dispatchEvent(new Event('change'));
             });
-            this.floats.push(entry);
-
-            const container = document.createElement('div');
-            const label = document.createElement('label');
-            label.for = names[i];
-            label.innerText = `${names[i]}: `;
-            entry.id = names[i];
-
-            container.appendChild(label);
-            container.appendChild(entry);
-            this.shadow.appendChild(container);
         }
-
-        this.value = this.defaultValue;
     }
 
     save() {
@@ -1450,6 +1550,8 @@ class ReduceColors_reduce_colors_data extends Type {
         this.el.appendChild(label);
         this.el.appendChild(input);
 
+        // TODO add a ui to edit colors individually
+
         this.shadow.appendChild(this.el);
     }
 
@@ -1523,26 +1625,33 @@ class GenParams {
 }
 
 class DefaultParams extends GenParams {
-    params = {freq: 1, c: 0};
+    params = {freq: 1, c: 0, y: 0, a: 1};
 }
 
+const constrain = (range, value) => Math.min(Math.max(value, range[0]), range[1]);
 
 const sin_generator = (t, range, genparams) => {
     const params = genparams.get();
     let value = Math.sin(params.freq * 2 * Math.PI * t / 1000 + params.c);
     value = (value + 1) / 2;
     value = value * (range[1] - range[0]) + range[0];
+    value = constrain(range, params.a * value + params.y);
     return value;
 };
 
+const raw_step = (t, range, freq, c) => {
+    return ((t / 1000 * freq + c) % (range[1] - range[0])) + range[0];
+}
+
 const step_generator = (t, range, genparams) => {
     const params = genparams.get();
-    return ((t / 1000 * params.freq + params.c) % (range[1] - range[0])) + range[0];
+    return constrain(range, params.a * raw_step(t, range, params.freq, params.c) + params.y);
 };
 
 const inv_step_generator = (t, range, genparams) => {
-    const step = step_generator(t, range, genparams);
-    return range[1] - step + range[0];
+    const params = genparams.get();
+    const step = raw_step(t, range, params.freq, params.c);
+    return constrain(range, params.a * (range[1] - step + range[0]) + params.y);
 };
 
 const generators = {
@@ -1582,6 +1691,7 @@ class FunctionGenerator{
         const function_ui = document.createElement('div');
         function_ui.className = 'function-ui';
 
+        // TODO use templates
         function_ui.appendChild(document.createElement('br'));
         const freq_label = document.createElement('label');
         freq_label.for = "freq_input";
@@ -1600,17 +1710,43 @@ class FunctionGenerator{
         function_ui.appendChild(c_label);
         function_ui.appendChild(c_input);
 
+        function_ui.appendChild(document.createElement('br'));
+        const a_label = document.createElement('label');
+        a_label.for = "a_input";
+        a_label.innerText = "Amplitude factor: ";
+        const a_input = new FloatBar([0, 10], 1, true);
+        a_input.id = "a_input";
+        function_ui.appendChild(a_label);
+        function_ui.appendChild(a_input);
+
+        function_ui.appendChild(document.createElement('br'));
+        const y_label = document.createElement('label');
+        y_label.for = "y_input";
+        y_label.innerText = "Y offset: ";
+        const y_input = new FloatBar([-1, 1], 0, true);
+        y_input.id = "y_input";
+        function_ui.appendChild(y_label);
+        function_ui.appendChild(y_input);
+
         this.func = generators[current].func;
         this.params = current_params || new generators[current].params();
         console.log("Using params", this.params);
         freq_input.set_value(this.params.params.freq);
         c_input.set_value(this.params.params.c);
+        a_input.set_value(this.params.params.a);
+        y_input.set_value(this.params.params.y);
 
         freq_input.addEventListener('change', () => {
             this.params.params.freq = parseFloat(freq_input.value);
         });
         c_input.addEventListener('change', () => {
             this.params.params.c = parseFloat(c_input.value);
+        });
+        a_input.addEventListener('change', () => {
+            this.params.params.a = parseFloat(a_input.value);
+        });
+        y_input.addEventListener('change', () => {
+            this.params.params.y = parseFloat(y_input.value);
         });
 
         const f = () => {
@@ -1977,8 +2113,36 @@ this.params.blur_stride_y = blur_stride_y;
             }
         }
         defineEl('synth-blur', BlurElement);
+        class Checkerfill extends Function {
+            id = 2
+            params = {}
+
+            constructor(checkerfill_strength, checkerfill_size, feedback) {
+                super(feedback || 0);
+                this.params.checkerfill_strength = checkerfill_strength;
+this.params.checkerfill_size = checkerfill_size;
+
+            }
+        }
+
+        class CheckerfillElement extends SynthElementBase {
+            get_title() {
+                return "Checkerfill";
+            }
+
+            get_fn() {
+                return Checkerfill;
+            }
+
+            get_args() {
+                return {
+                    checkerfill_strength: new FloatBar([-1,10], 2),checkerfill_size: new IntEntry([1,100], 5)
+                }
+            }
+        }
+        defineEl('synth-checkerfill', CheckerfillElement);
 class Enhance extends Function {
-    id = 2
+    id = 3
     params = {}
 
     constructor(enhance, feedback) {
@@ -2005,7 +2169,7 @@ class EnhanceElement extends SynthElementBase {
 }
 defineEl('synth-enhance', EnhanceElement);
 class GammaCorrect extends Function {
-    id = 3
+    id = 4
     params = {}
 
     constructor(gamma_correction, feedback) {
@@ -2031,8 +2195,64 @@ class GammaCorrectElement extends SynthElementBase {
     }
 }
 defineEl('synth-gammacorrect', GammaCorrectElement);
+class Greyscale extends Function {
+    id = 5
+    params = {}
+
+    constructor(greyscale_luminance, feedback) {
+        super(feedback || 0);
+        this.params.greyscale_luminance = greyscale_luminance;
+
+    }
+}
+
+class GreyscaleElement extends SynthElementBase {
+    get_title() {
+        return "Greyscale";
+    }
+
+    get_fn() {
+        return Greyscale;
+    }
+
+    get_args() {
+        return {
+            greyscale_luminance: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [0.2126,0.7152,0.0722])
+        }
+    }
+}
+defineEl('synth-greyscale', GreyscaleElement);
+        class Halftone extends Function {
+            id = 6
+            params = {}
+
+            constructor(halftone_factor, halftone_invert, halftone_strength, feedback) {
+                super(feedback || 0);
+                this.params.halftone_factor = halftone_factor;
+this.params.halftone_invert = halftone_invert;
+this.params.halftone_strength = halftone_strength;
+
+            }
+        }
+
+        class HalftoneElement extends SynthElementBase {
+            get_title() {
+                return "Halftone";
+            }
+
+            get_fn() {
+                return Halftone;
+            }
+
+            get_args() {
+                return {
+                    halftone_factor: new IntEntry([0,500], 10),halftone_invert: new BoolEntry(false),halftone_strength: new FloatBar([0,2], 1)
+                }
+            }
+        }
+        defineEl('synth-halftone', HalftoneElement);
         class HueShift extends Function {
-            id = 4
+            id = 7
             params = {}
 
             constructor(hue_shift, saturate_shift, feedback) {
@@ -2060,7 +2280,7 @@ this.params.saturate_shift = saturate_shift;
         }
         defineEl('synth-hueshift', HueShiftElement);
 class InvertColor extends Function {
-    id = 5
+    id = 8
     params = {}
 
     constructor(feedback) {
@@ -2086,7 +2306,7 @@ class InvertColorElement extends SynthElementBase {
 }
 defineEl('synth-invertcolor', InvertColorElement);
         class Noise extends Function {
-            id = 6
+            id = 9
             params = {}
 
             constructor(noise_r, noise_g, noise_b, feedback) {
@@ -2115,7 +2335,7 @@ this.params.noise_b = noise_b;
         }
         defineEl('synth-noise', NoiseElement);
         class Offset extends Function {
-            id = 7
+            id = 10
             params = {}
 
             constructor(offsets_x, offsets_y, feedback) {
@@ -2143,7 +2363,7 @@ this.params.offsets_y = offsets_y;
         }
         defineEl('synth-offset', OffsetElement);
         class Oscillator extends Function {
-            id = 8
+            id = 11
             params = {}
 
             constructor(osc_f, osc_c, osc_color, feedback) {
@@ -2172,7 +2392,7 @@ this.params.osc_color = osc_color;
         }
         defineEl('synth-oscillator', OscillatorElement);
         class Picture extends Function {
-            id = 9
+            id = 12
             params = {}
 
             constructor(picture_texture, picture_dimensions, feedback) {
@@ -2200,7 +2420,7 @@ this.params.picture_dimensions = picture_dimensions;
         }
         defineEl('synth-picture', PictureElement);
 class Pixelate extends Function {
-    id = 10
+    id = 13
     params = {}
 
     constructor(pixelate_factor, feedback) {
@@ -2227,7 +2447,7 @@ class PixelateElement extends SynthElementBase {
 }
 defineEl('synth-pixelate', PixelateElement);
         class Recolor extends Function {
-            id = 11
+            id = 14
             params = {}
 
             constructor(recolor_new_r, recolor_new_g, recolor_new_b, feedback) {
@@ -2256,7 +2476,7 @@ this.params.recolor_new_b = recolor_new_b;
         }
         defineEl('synth-recolor', RecolorElement);
         class ReduceColors extends Function {
-            id = 12
+            id = 15
             params = {}
 
             constructor(reduce_colors_data, reduce_colors_count, feedback) {
@@ -2284,7 +2504,7 @@ this.params.reduce_colors_count = reduce_colors_count;
         }
         defineEl('synth-reducecolors', ReduceColorsElement);
         class Reflector extends Function {
-            id = 13
+            id = 16
             params = {}
 
             constructor(reflect_theta, reflect_y, reflect_x, feedback) {
@@ -2313,7 +2533,7 @@ this.params.reflect_x = reflect_x;
         }
         defineEl('synth-reflector', ReflectorElement);
         class Ripple extends Function {
-            id = 14
+            id = 17
             params = {}
 
             constructor(ripple_freq, ripple_c, ripple_strength, ripple_center, feedback) {
@@ -2343,7 +2563,7 @@ this.params.ripple_center = ripple_center;
         }
         defineEl('synth-ripple', RippleElement);
 class Rotate extends Function {
-    id = 15
+    id = 18
     params = {}
 
     constructor(rotation, feedback) {
@@ -2370,7 +2590,7 @@ class RotateElement extends SynthElementBase {
 }
 defineEl('synth-rotate', RotateElement);
         class Superformula extends Function {
-            id = 16
+            id = 19
             params = {}
 
             constructor(sf_color, sf_m, sf_n, sf_thickness, sf_smooth_edges, feedback) {
@@ -2401,7 +2621,7 @@ this.params.sf_smooth_edges = sf_smooth_edges;
         }
         defineEl('synth-superformula', SuperformulaElement);
 class Swirl extends Function {
-    id = 17
+    id = 20
     params = {}
 
     constructor(factor, feedback) {
@@ -2428,7 +2648,7 @@ class SwirlElement extends SynthElementBase {
 }
 defineEl('synth-swirl', SwirlElement);
         class Threshold extends Function {
-            id = 18
+            id = 21
             params = {}
 
             constructor(threshold_high_r, threshold_high_g, threshold_high_b, thresholds, feedback) {
@@ -2458,7 +2678,7 @@ this.params.thresholds = thresholds;
         }
         defineEl('synth-threshold', ThresholdElement);
         class Tile extends Function {
-            id = 19
+            id = 22
             params = {}
 
             constructor(tile_x, tile_y, feedback) {
@@ -2486,7 +2706,7 @@ this.params.tile_y = tile_y;
         }
         defineEl('synth-tile', TileElement);
         class Wavy extends Function {
-            id = 20
+            id = 23
             params = {}
 
             constructor(wavy_freq_x, wavy_c_x, wavy_strength_x, wavy_freq_y, wavy_c_y, wavy_strength_y, feedback) {
@@ -2518,7 +2738,7 @@ this.params.wavy_strength_y = wavy_strength_y;
         }
         defineEl('synth-wavy', WavyElement);
         class Webcam extends Function {
-            id = 21
+            id = 24
             params = {}
 
             constructor(webcam_texture, webcam_dimensions, webcam_invert_x, webcam_invert_y, feedback) {
@@ -2548,7 +2768,7 @@ this.params.webcam_invert_y = webcam_invert_y;
         }
         defineEl('synth-webcam', WebcamElement);
         class Zoom extends Function {
-            id = 22
+            id = 25
             params = {}
 
             constructor(zoom, zoom_center, feedback) {
@@ -2575,7 +2795,7 @@ this.params.zoom_center = zoom_center;
             }
         }
         defineEl('synth-zoom', ZoomElement);
-const MODULE_IDS = {"blur": {class: "BlurElement", tag: "space"},"enhance": {class: "EnhanceElement", tag: "color"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"ripple": {class: "RippleElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"wavy": {class: "WavyElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
+const MODULE_IDS = {"blur": {class: "BlurElement", tag: "space"},"checkerfill": {class: "CheckerfillElement", tag: "space"},"enhance": {class: "EnhanceElement", tag: "color"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"greyscale": {class: "GreyscaleElement", tag: "color"},"halftone": {class: "HalftoneElement", tag: "space"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"ripple": {class: "RippleElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"wavy": {class: "WavyElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
 // ---------- END build/module_lib.js ------
 
 // ---------- meta_module.js ----------
@@ -3013,7 +3233,7 @@ function _download(data, filename) {
     document.body.removeChild(downloader);
 }
 
-function setup_save_load(ui, synth) {
+function setup_save_load(ui, synth, settingsui) {
     // magic + 4 byte length + 1 byte per RGBA values
     // this is because we can't use the A channel because of premultiplied
     // stuff, TODO fix that
@@ -3030,6 +3250,7 @@ function setup_save_load(ui, synth) {
         const saveobj = {
             stages: saved,
             modules: meta_modules,
+            settings: settingsui.save()
         };
 
         const savestr = JSON.stringify(saveobj);
@@ -3097,6 +3318,19 @@ function setup_save_load(ui, synth) {
         }
     });
 
+    const do_load = (name, savedata) => {
+        if (savedata.modules)
+            load_meta_modules(savedata.modules, ui, synth);
+        if (savedata.stages)
+            loaddata(savedata.stages, ui, synth);
+        if (savedata.settings)
+            settingsui.load(savedata.settings);
+        if (synth.name === "") {
+            synth.name = name;
+            ui.dispatchEvent(new Event("namechange"));
+        }
+    };
+
     const loadUpload = document.getElementById("load");
     loadUpload.addEventListener("change", () => {
         let file = loadUpload.files[0];
@@ -3109,7 +3343,6 @@ function setup_save_load(ui, synth) {
                 const img = new Image();
                 img.src = reader.result;
                 await new Promise(r => { img.onload = r; });
-                console.log(img);
 
                 const canvas = document.createElement("canvas");
                 canvas.width = img.width;
@@ -3122,25 +3355,14 @@ function setup_save_load(ui, synth) {
                 const stegodata = ctxdata.data;
                 const result = decode_stego(stegodata, LZString);
 
-                const savedata = JSON.parse(result);
-                load_meta_modules(savedata.modules, ui, synth);
-                loaddata(savedata.stages, ui, synth);
+                do_load(name, JSON.parse(result));
             }
         } else {
             reader.readAsText(file)
             reader.onloadend = () => {
-                const savedata = JSON.parse(reader.result);
-                if (savedata.stages) {
-                    load_meta_modules(savedata.modules, ui, synth);
-                    loaddata(savedata.stages, ui, synth);
-                } else { // older version for compat
-                    loaddata(savedata, ui, synth);
-                }
+                do_load(name, JSON.parse(reader.result));
             };
         }
-
-        synth.name = name;
-        ui.dispatchEvent(new Event("namechange"));
     });
 }
 
@@ -3150,34 +3372,72 @@ try {
 // ---------- END saveload.js ------
 
 // ---------- settings.js ----------
-function setup_settings(ui, synth) {
-    const name_inp = document.getElementById("name");
-    const clock_inp = document.getElementById("clock_speed");
-    const autosave_btn = document.getElementById("autosave_enable");
-    const autosave_opts = document.getElementById("autosave_opts");
+class SettingsUI {
+    constructor(ui, synth) {
+        this.name_inp = document.getElementById("name");
+        this.clock_inp = document.getElementById("clock_speed");
+        // const autosave_btn = document.getElementById("autosave_enable");
+        // const autosave_opts = document.getElementById("autosave_opts");
 
-    name_inp.addEventListener("change", () => {
-        synth.name = name_inp.value;
-        ui.dispatchEvent(new Event("namechange"));
-    });
+        this.name_inp.addEventListener("change", () => {
+            synth.name = this.name_inp.value;
+            ui.dispatchEvent(new Event("namechange"));
+        });
 
-    ui.addEventListener("namechange", () => {
-        name_inp.value = synth.name;
-    });
+        ui.addEventListener("namechange", () => {
+            this.name_inp.value = synth.name;
+        });
 
-    clock_inp.addEventListener("change", () => {
-        synth.clock_speed = clock_inp.value;
-    });
+        this.clock_inp.addEventListener("change", () => {
+            synth.clock_speed = this.clock_inp.value;
+        });
 
-    // TODO autosave to localstorage
-}
+        // this.auto_dims_btn = document.getElementById("auto_dims_enable");
+        this.render_width_inp = document.getElementById("render_width");
+        this.render_height_inp = document.getElementById("render_height");
+        // this.render_dims = document.getElementById("render_dims");
+        // this.target_fps_container = document.getElementById("target_fps_container");
+        // this.target_fps = document.getElementById("target_fps");
+        // this.target_fps.value = synth.target_fps;
+        // this.auto_dims_btn.addEventListener("change", () => {
+        //     if (this.auto_dims_btn.checked) {
+        //         this.target_fps_container.style.display = "";
+        //         this.render_dims.style.display = "none";
+        //         synth.begin_auto_scale();
+        //     } else {
+        //         synth.stop_auto_scale();
+        //         this.target_fps_container.style.display = "none";
+        //         this.render_dims.style.display = "";
+        //         this.render_width_inp.value = synth.dimensions[0];
+        //         this.render_height_inp.value = synth.dimensions[1];
+        //     }
+        // });
+        // TODO add to save/load
+        // TODO allow picture/webcam to resize canvas with an option
+        this.render_height_inp.addEventListener("change", () => {
+            synth.resize([synth.dimensions[0], Math.floor(this.render_height_inp.value)]);
+        });
+        this.render_width_inp.addEventListener("change", () => {
+            synth.resize([Math.floor(this.render_width_inp.value), synth.dimensions[1]]);
+        });
 
-function get_settings() {
-    // TODO for saving/loading
-}
 
-function load_settings() {
-    // TODO for saving/loading
+        // TODO autosave to localstorage
+    }
+
+    save() {
+        return {
+            name: this.name_inp.value,
+            clock: this.clock_inp.value,
+        };
+    }
+
+    load(data) {
+        this.name_inp.value = data.name || this.name_inp.value;
+        this.name_inp.dispatchEvent(new Event("change"));
+        this.clock_inp.value = data.clock || 1;
+        this.clock_inp.dispatchEvent(new Event("change"));
+    }
 }
 // ---------- END settings.js ------
 
@@ -3190,7 +3450,7 @@ class Stage {
 }
 
 class Synth {
-    name = "synth";
+    name = "";
     clock_speed = 1;
 
     recording = [];
@@ -3234,6 +3494,20 @@ class Synth {
         this.fbs = new FrameBufferManager(this.gl, this.dimensions);
         this.canvas = canvas;
     }
+
+    resize(new_dims) {
+        this.dimensions = [...new_dims];
+        this.canvas.width = this.dimensions[0];
+        this.canvas.height = this.dimensions[1];
+
+        this.gl.viewport(0, 0, ...this.dimensions);
+
+        this.fbs = new FrameBufferManager(this.gl, this.dimensions);
+    }
+
+    last_render_time = 0;
+    target_time_ms = 1000 / 60;
+    auto_scaling = false;
 
     render(time_) {
         this.dispatchEvent
@@ -3307,6 +3581,43 @@ class Synth {
             this.record_frames--;
         }
 
+        // if (this.auto_scaling) {
+        //     const delta = time_ - this.last_render_time;
+
+        //     const threshold = 100; // 100 ms threshold
+        //     const difference = this.target_time_ms - delta;
+        //     const adiff = Math.abs(difference);
+        //     if (this.last_render_time == 0 || adiff < 100) {
+        //         this.last_render_time = time_;
+        //         console.log(".", Math.floor(adiff));
+        //         return;
+        //     }
+        //     this.last_render_time = time_;
+        //     console.log("!", adiff);
+
+        //     const sdiff = Math.sign(difference);
+
+        //     const factor = Math.max(Math.min(Math.floor(adiff) / 2, 1), 50);
+        //     let new_dims = null;
+        //     if (Math.sign > 0)
+        //         new_dims = this.dimensions.map(x => Math.max(x + factor));
+        //     else
+        //         new_dims = this.dimensions.map(x => Math.max(x - factor));
+        //     TODO resize might allocate memory, this is bad to call here.
+        //     this.resize(new_dims);
+        // }
+    }
+
+    set_target_fps(fps) {
+        this.target_time_ms = 1000 / fps;
+    }
+
+    begin_auto_scale() {
+        this.auto_scaling = true;
+    }
+
+    stop_auto_scale() {
+        this.auto_scaling = false;
     }
 
     get_frame_data(array) {
@@ -3474,11 +3785,12 @@ async function synth_main(canvas) {
     ui.addEventListener("namechange", () => {
         title.innerText = synth.name;
     });
-    setup_settings(ui, synth);
+
+    const settings = new SettingsUI(ui, synth);
     setup_controler();
     setup_add_new_stage(ui, synth);
     setup_meta_module(ui, synth);
-    setup_save_load(ui, synth);
+    setup_save_load(ui, synth, settings);
     setup_recording(ui, synth);
 }
 

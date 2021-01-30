@@ -6,7 +6,7 @@ class Stage {
 }
 
 class Synth {
-    name = "synth";
+    name = "";
     clock_speed = 1;
 
     recording = [];
@@ -50,6 +50,20 @@ class Synth {
         this.fbs = new FrameBufferManager(this.gl, this.dimensions);
         this.canvas = canvas;
     }
+
+    resize(new_dims) {
+        this.dimensions = [...new_dims];
+        this.canvas.width = this.dimensions[0];
+        this.canvas.height = this.dimensions[1];
+
+        this.gl.viewport(0, 0, ...this.dimensions);
+
+        this.fbs = new FrameBufferManager(this.gl, this.dimensions);
+    }
+
+    last_render_time = 0;
+    target_time_ms = 1000 / 60;
+    auto_scaling = false;
 
     render(time_) {
         this.dispatchEvent
@@ -123,6 +137,43 @@ class Synth {
             this.record_frames--;
         }
 
+        // if (this.auto_scaling) {
+        //     const delta = time_ - this.last_render_time;
+
+        //     const threshold = 100; // 100 ms threshold
+        //     const difference = this.target_time_ms - delta;
+        //     const adiff = Math.abs(difference);
+        //     if (this.last_render_time == 0 || adiff < 100) {
+        //         this.last_render_time = time_;
+        //         console.log(".", Math.floor(adiff));
+        //         return;
+        //     }
+        //     this.last_render_time = time_;
+        //     console.log("!", adiff);
+
+        //     const sdiff = Math.sign(difference);
+
+        //     const factor = Math.max(Math.min(Math.floor(adiff) / 2, 1), 50);
+        //     let new_dims = null;
+        //     if (Math.sign > 0)
+        //         new_dims = this.dimensions.map(x => Math.max(x + factor));
+        //     else
+        //         new_dims = this.dimensions.map(x => Math.max(x - factor));
+        //     TODO resize might allocate memory, this is bad to call here.
+        //     this.resize(new_dims);
+        // }
+    }
+
+    set_target_fps(fps) {
+        this.target_time_ms = 1000 / fps;
+    }
+
+    begin_auto_scale() {
+        this.auto_scaling = true;
+    }
+
+    stop_auto_scale() {
+        this.auto_scaling = false;
     }
 
     get_frame_data(array) {
@@ -290,11 +341,12 @@ async function synth_main(canvas) {
     ui.addEventListener("namechange", () => {
         title.innerText = synth.name;
     });
-    setup_settings(ui, synth);
+
+    const settings = new SettingsUI(ui, synth);
     setup_controler();
     setup_add_new_stage(ui, synth);
     setup_meta_module(ui, synth);
-    setup_save_load(ui, synth);
+    setup_save_load(ui, synth, settings);
     setup_recording(ui, synth);
 }
 
