@@ -19,7 +19,6 @@ uniform float u_transform_scale;
 uniform vec2 u_transform_center;
 uniform float u_transform_rotation;
 uniform int u_function;
-uniform int u_stage;
 
 uniform float u_feedback;
 uniform bool u_constrain_to_transform;
@@ -99,6 +98,60 @@ void blur() {
 }
 
 
+/// modulefn: composite
+/// moduletag: channels
+
+uniform sampler2D u_composite_map_1; /// channel
+uniform sampler2D u_composite_map_2; /// channel
+
+void composite() {
+    vec2 coords = u_tex_dimensions * t_coords.xy / u_dimensions;
+    color_out.xyz =
+        color_out.rgb * texelFetch(u_composite_map_1, ivec2(coords), 0).rgb +
+        (1. - color_out.rgb) * texelFetch(u_composite_map_2, ivec2(coords), 0).rgb;
+}
+
+
+/// modulefn: condzoom
+/// moduletag: channels
+
+uniform float u_condzoom_strength; /// { "start": -1, "end": 10, "default": 2 }
+uniform sampler2D u_condzoom_map; /// channel
+
+void condzoom() {
+    vec2 coords = t_coords.xy / u_dimensions;
+    vec2 c = 2. * coords - 1.;
+
+    float r = length(c);
+    float theta = atan(c.y, c.x);
+
+    vec3 lumc = vec3(0.2126, 0.7152, 0.0722);
+    float lum = dot(color_out.rgb, lumc);
+    float z = u_condzoom_strength * lum;
+
+    if (z > 0.)
+        c /= z;
+
+    c = (c + 1.) / 2.;
+    c *= u_tex_dimensions;
+
+    ivec2 ic = ivec2(c);
+
+    color_out.xyz = texelFetch(u_condzoom_map, ic, 0).rgb;
+}
+
+
+/// modulefn: copy
+/// moduletag: channels
+
+uniform sampler2D u_copy_map; /// channel
+
+void copy() {
+    vec2 coords = u_tex_dimensions * t_coords.xy / u_dimensions;
+    color_out.xyz += texelFetch(u_copy_map, ivec2(coords), 0).rgb;
+}
+
+
 /// modulefn: checkerfill
 /// moduletag: space
 
@@ -116,10 +169,8 @@ void checkerfill() {
     float lum = dot(color_out.rgb, lumc);
     float z = u_checkerfill_strength * lum;
 
-    // c = c - (u_ripple_center - 0.5);
     if (z > 0.)
         c /= z;
-    // c = c + (u_ripple_center - 0.5);
 
     c = (c + 1.) / 2.;
     c *= u_tex_dimensions;
@@ -216,6 +267,17 @@ void hue_shift() {
 
 void invert_color() {
     color_out.rgb = 1. - color_out.rgb;
+}
+
+
+/// modulefn: multiply
+/// moduletag: channels
+
+uniform sampler2D u_multiply_map; /// channel
+
+void multiply() {
+    vec2 coords = u_tex_dimensions * t_coords.xy / u_dimensions;
+    color_out.xyz *= texelFetch(u_multiply_map, ivec2(coords), 0).rgb;
 }
 
 
@@ -699,72 +761,84 @@ case 2:
     checkerfill();
     break;
 case 3:
-    enhance();
+    composite();
     break;
 case 4:
-    gamma_correct();
+    condzoom();
     break;
 case 5:
-    greyscale();
+    copy();
     break;
 case 6:
-    halftone();
+    enhance();
     break;
 case 7:
-    hue_shift();
+    gamma_correct();
     break;
 case 8:
-    invert_color();
+    greyscale();
     break;
 case 9:
-    noise();
+    halftone();
     break;
 case 10:
-    offset();
+    hue_shift();
     break;
 case 11:
-    oscillator();
+    invert_color();
     break;
 case 12:
-    picture();
+    multiply();
     break;
 case 13:
-    pixelate();
+    noise();
     break;
 case 14:
-    recolor();
+    offset();
     break;
 case 15:
-    reduce_colors();
+    oscillator();
     break;
 case 16:
-    reflector();
+    picture();
     break;
 case 17:
-    ripple();
+    pixelate();
     break;
 case 18:
-    rotate();
+    recolor();
     break;
 case 19:
-    superformula();
+    reduce_colors();
     break;
 case 20:
-    swirl();
+    reflector();
     break;
 case 21:
-    threshold();
+    ripple();
     break;
 case 22:
-    tile();
+    rotate();
     break;
 case 23:
-    wavy();
+    superformula();
     break;
 case 24:
-    webcam();
+    swirl();
     break;
 case 25:
+    threshold();
+    break;
+case 26:
+    tile();
+    break;
+case 27:
+    wavy();
+    break;
+case 28:
+    webcam();
+    break;
+case 29:
     zoom();
     break;
 

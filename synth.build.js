@@ -208,7 +208,6 @@ uniform float u_transform_scale;
 uniform vec2 u_transform_center;
 uniform float u_transform_rotation;
 uniform int u_function;
-uniform int u_stage;
 
 uniform float u_feedback;
 uniform bool u_constrain_to_transform;
@@ -288,6 +287,60 @@ void blur() {
 }
 
 
+/// modulefn: composite
+/// moduletag: channels
+
+uniform sampler2D u_composite_map_1; /// channel
+uniform sampler2D u_composite_map_2; /// channel
+
+void composite() {
+    vec2 coords = u_tex_dimensions * t_coords.xy / u_dimensions;
+    color_out.xyz =
+        color_out.rgb * texelFetch(u_composite_map_1, ivec2(coords), 0).rgb +
+        (1. - color_out.rgb) * texelFetch(u_composite_map_2, ivec2(coords), 0).rgb;
+}
+
+
+/// modulefn: condzoom
+/// moduletag: channels
+
+uniform float u_condzoom_strength; /// { "start": -1, "end": 10, "default": 2 }
+uniform sampler2D u_condzoom_map; /// channel
+
+void condzoom() {
+    vec2 coords = t_coords.xy / u_dimensions;
+    vec2 c = 2. * coords - 1.;
+
+    float r = length(c);
+    float theta = atan(c.y, c.x);
+
+    vec3 lumc = vec3(0.2126, 0.7152, 0.0722);
+    float lum = dot(color_out.rgb, lumc);
+    float z = u_condzoom_strength * lum;
+
+    if (z > 0.)
+        c /= z;
+
+    c = (c + 1.) / 2.;
+    c *= u_tex_dimensions;
+
+    ivec2 ic = ivec2(c);
+
+    color_out.xyz = texelFetch(u_condzoom_map, ic, 0).rgb;
+}
+
+
+/// modulefn: copy
+/// moduletag: channels
+
+uniform sampler2D u_copy_map; /// channel
+
+void copy() {
+    vec2 coords = u_tex_dimensions * t_coords.xy / u_dimensions;
+    color_out.xyz += texelFetch(u_copy_map, ivec2(coords), 0).rgb;
+}
+
+
 /// modulefn: checkerfill
 /// moduletag: space
 
@@ -305,10 +358,8 @@ void checkerfill() {
     float lum = dot(color_out.rgb, lumc);
     float z = u_checkerfill_strength * lum;
 
-    // c = c - (u_ripple_center - 0.5);
     if (z > 0.)
         c /= z;
-    // c = c + (u_ripple_center - 0.5);
 
     c = (c + 1.) / 2.;
     c *= u_tex_dimensions;
@@ -405,6 +456,17 @@ void hue_shift() {
 
 void invert_color() {
     color_out.rgb = 1. - color_out.rgb;
+}
+
+
+/// modulefn: multiply
+/// moduletag: channels
+
+uniform sampler2D u_multiply_map; /// channel
+
+void multiply() {
+    vec2 coords = u_tex_dimensions * t_coords.xy / u_dimensions;
+    color_out.xyz *= texelFetch(u_multiply_map, ivec2(coords), 0).rgb;
 }
 
 
@@ -888,72 +950,84 @@ case 2:
     checkerfill();
     break;
 case 3:
-    enhance();
+    composite();
     break;
 case 4:
-    gamma_correct();
+    condzoom();
     break;
 case 5:
-    greyscale();
+    copy();
     break;
 case 6:
-    halftone();
+    enhance();
     break;
 case 7:
-    hue_shift();
+    gamma_correct();
     break;
 case 8:
-    invert_color();
+    greyscale();
     break;
 case 9:
-    noise();
+    halftone();
     break;
 case 10:
-    offset();
+    hue_shift();
     break;
 case 11:
-    oscillator();
+    invert_color();
     break;
 case 12:
-    picture();
+    multiply();
     break;
 case 13:
-    pixelate();
+    noise();
     break;
 case 14:
-    recolor();
+    offset();
     break;
 case 15:
-    reduce_colors();
+    oscillator();
     break;
 case 16:
-    reflector();
+    picture();
     break;
 case 17:
-    ripple();
+    pixelate();
     break;
 case 18:
-    rotate();
+    recolor();
     break;
 case 19:
-    superformula();
+    reduce_colors();
     break;
 case 20:
-    swirl();
+    reflector();
     break;
 case 21:
-    threshold();
+    ripple();
     break;
 case 22:
-    tile();
+    rotate();
     break;
 case 23:
-    wavy();
+    superformula();
     break;
 case 24:
-    webcam();
+    swirl();
     break;
 case 25:
+    threshold();
+    break;
+case 26:
+    tile();
+    break;
+case 27:
+    wavy();
+    break;
+case 28:
+    webcam();
+    break;
+case 29:
     zoom();
     break;
 
@@ -1307,6 +1381,56 @@ class VecEntry extends Type {
     }
 }
 defineEl('vec-entry', VecEntry);
+
+function add_new_channel_ui(ui_container, chanid) {
+    const new_ui = document.createElement("div");
+    new_ui.id = `ui-${chanid}`;
+    ui_container.appendChild(new_ui);
+}
+
+class ChannelId {
+    constructor(id) {
+        this.id = id;
+    }
+}
+
+class ChannelSelect extends Type {
+    constructor(synth) {
+        const value = new ChannelId(0);
+        super(undefined, value);
+
+        this.value = value;
+        this.shadow.appendChild(createElement(html`
+            <input type="number" min="0" step="1"></input>
+        `));
+        this.input = this.shadow.querySelector("input");
+        this.input.value = 0;
+        this.input.addEventListener('change', () => {
+            const value = this.input.value;
+            if (value >= synth.channels.length) {
+                this.input.style = "color: red";
+                return;
+            }
+
+            this.input.style = "";
+            this.value.id = parseInt(this.input.value);
+            console.log(parseInt(this.input.value), this.value);
+            this.dispatchEvent(new Event('change'));
+        });
+    }
+
+    save() {
+        return this.value.id;
+    }
+
+    load(data) {
+        this.value.id = data;
+        this.input.value = data;
+        this.dispatchEvent(new Event('change'));
+    }
+}
+defineEl('channel-select', ChannelSelect);
+
 // ---------- END ui.js ------
 
 // ---------- customui.js ----------
@@ -1316,8 +1440,8 @@ class Picture_picture_texture extends Type {
     }
 
     customonchange(element) {
-        this.synth.stageModules[element.name].fn_params.params['picture_texture'] = this.tex;
-        this.synth.stageModules[element.name].fn_params.params['picture_dimensions'] = this.dimensions;
+        this.synth._get_stageModules(this.channelid)[element.name].fn_params.params['picture_texture'] = this.tex;
+        this.synth._get_stageModules(this.channelid)[element.name].fn_params.params['picture_dimensions'] = this.dimensions;
 
         element.args.picture_dimensions.set_value(this.dimensions);
     }
@@ -1335,6 +1459,8 @@ class Picture_picture_texture extends Type {
 
         this.tex = tex;
         this.synth = synth;
+        this.channelid = synth.active_channel;
+
         this.dimensions = [...synth.dimensions];
         this.img = img;
         this.img.addEventListener('load', () => { this.imgload(); });
@@ -1394,8 +1520,8 @@ defineEl('picture-picture-dimensions', Picture_picture_dimensions);
 
 class Webcam_webcam_texture extends Type {
     customonchange(element) {
-        this.synth.stageModules[element.name].fn_params.params['webcam_texture'] = this.tex;
-        this.synth.stageModules[element.name].fn_params.params['webcam_dimensions'] = this.dimensions;
+        this.synth._get_stageModules(this.channelid)[element.name].fn_params.params['webcam_texture'] = this.tex;
+        this.synth._get_stageModules(this.channelid)[element.name].fn_params.params['webcam_dimensions'] = this.dimensions;
 
         element.args.webcam_dimensions.set_value(this.dimensions);
     }
@@ -1406,6 +1532,7 @@ class Webcam_webcam_texture extends Type {
 
         this.tex = tex;
         this.synth = synth;
+        this.channelid = synth.active_channel;
         this.dimensions = synth.dimensions;
         this.setup();
     }
@@ -1504,10 +1631,9 @@ defineEl('webcam-webcam-dimensions', Webcam_webcam_dimensions);
 class ReduceColors_reduce_colors_data extends Type {
     customonchange(element) {
         try {
-            this.synth.stageModules[element.name].fn_params.params['reduce_colors_data'] = this.tex;
-            this.synth.stageModules[element.name].fn_params.params['reduce_colors_count'] = this.count;
+            this.synth._get_stageModules(this.channelid)[element.name].fn_params.params['reduce_colors_data'] = this.tex;
+            this.synth._get_stageModules(this.channelid)[element.name].fn_params.params['reduce_colors_count'] = this.count;
         } catch (e) {
-            console.log("!!!", ...this.synth.stages);
             // TODO custom elements break with meta modules
         }
 
@@ -1522,6 +1648,7 @@ class ReduceColors_reduce_colors_data extends Type {
 
         this.tex = tex;
         this.synth = synth;
+        this.channelid = synth.active_channel;
 
         // we waste 1 float for the alpha channel - TODO
         this.data = new Float32Array(4 * 256);
@@ -1841,6 +1968,7 @@ class SynthStageBase extends HTMLElement {
             pre_setup(this);
 
         this.synth = synth;
+        this.channelid = synth.active_channel;
 
         const shadow = this.attachShadow({mode: 'open'});
         this.shadow = shadow;
@@ -1896,11 +2024,11 @@ class SynthStageBase extends HTMLElement {
         shadow.appendChild(box);
 
         moveup.addEventListener('click', () => {
-            const idx = this.synth.stages.indexOf(this.name);
+            const idx = this.synth._get_stages(this.channelid).indexOf(this.name);
             if (idx != 0) {
-                const other = this.synth.stages[idx - 1];
-                this.synth.stages[idx] = other;
-                this.synth.stages[idx - 1] = this.name;
+                const other = this.synth._get_stages(this.channelid)[idx - 1];
+                this.synth._get_stages(this.channelid)[idx] = other;
+                this.synth._get_stages(this.channelid)[idx - 1] = this.name;
                 const parentEl =this.parentElement;
                 this.remove();
                 parentEl.insertBefore(this, parentEl.childNodes[idx - 1]);
@@ -1908,11 +2036,11 @@ class SynthStageBase extends HTMLElement {
         });
 
         movedn.addEventListener('click', () => {
-            const idx = this.synth.stages.indexOf(this.name);
-            if (idx != (this.synth.stages.length - 1)) {
-                const other = this.synth.stages[idx + 1];
-                this.synth.stages[idx] = other;
-                this.synth.stages[idx + 1] = this.name;
+            const idx = this.synth._get_stages(this.channelid).indexOf(this.name);
+            if (idx != (this.synth._get_stages(this.channelid).length - 1)) {
+                const other = this.synth._get_stages(this.channelid)[idx + 1];
+                this.synth._get_stages(this.channelid)[idx] = other;
+                this.synth._get_stages(this.channelid)[idx + 1] = this.name;
 
                 const parentEl =this.parentElement;
                 this.remove();
@@ -1921,7 +2049,7 @@ class SynthStageBase extends HTMLElement {
         });
 
         this.remove_btn.addEventListener('click', () => {
-            this.synth.remove_stage(this.name);
+            this.synth.remove_stage(this.channelid, this.name);
             this.remove();
 
             for (let arg of Object.keys(this.args))
@@ -1930,7 +2058,7 @@ class SynthStageBase extends HTMLElement {
         });
 
         this.enable_el.addEventListener('change', () => {
-            this.synth.toggle_stage(this.name, this.enable_el.checked);
+            this.synth.toggle_stage(this.channelid, this.name, this.enable_el.checked);
         });
     }
 
@@ -1998,7 +2126,7 @@ class SynthElementBase extends SynthStageBase {
         globalCounters[this.get_title()] = counter + 1;
         this.name = `${this.get_title()}-${counter}`;
 
-        synth.add_stage(this.name, this.build_stage(params));
+        synth.add_stage(this.channelid, this.name, this.build_stage(params));
     }
 
     build_stage(params) {
@@ -2142,8 +2270,91 @@ this.params.checkerfill_size = checkerfill_size;
             }
         }
         defineEl('synth-checkerfill', CheckerfillElement);
+        class Composite extends Function {
+            id = 3
+            params = {}
+
+            constructor(composite_map_1, composite_map_2, feedback) {
+                super(feedback || 0);
+                this.params.composite_map_1 = composite_map_1;
+this.params.composite_map_2 = composite_map_2;
+
+            }
+        }
+
+        class CompositeElement extends SynthElementBase {
+            get_title() {
+                return "Composite";
+            }
+
+            get_fn() {
+                return Composite;
+            }
+
+            get_args() {
+                return {
+                    composite_map_1: new ChannelSelect(this.synth),composite_map_2: new ChannelSelect(this.synth)
+                }
+            }
+        }
+        defineEl('synth-composite', CompositeElement);
+        class Condzoom extends Function {
+            id = 4
+            params = {}
+
+            constructor(condzoom_strength, condzoom_map, feedback) {
+                super(feedback || 0);
+                this.params.condzoom_strength = condzoom_strength;
+this.params.condzoom_map = condzoom_map;
+
+            }
+        }
+
+        class CondzoomElement extends SynthElementBase {
+            get_title() {
+                return "Condzoom";
+            }
+
+            get_fn() {
+                return Condzoom;
+            }
+
+            get_args() {
+                return {
+                    condzoom_strength: new FloatBar([-1,10], 2),condzoom_map: new ChannelSelect(this.synth)
+                }
+            }
+        }
+        defineEl('synth-condzoom', CondzoomElement);
+class Copy extends Function {
+    id = 5
+    params = {}
+
+    constructor(copy_map, feedback) {
+        super(feedback || 0);
+        this.params.copy_map = copy_map;
+
+    }
+}
+
+class CopyElement extends SynthElementBase {
+    get_title() {
+        return "Copy";
+    }
+
+    get_fn() {
+        return Copy;
+    }
+
+    get_args() {
+        return {
+            copy_map: new ChannelSelect(this.synth)
+        }
+    }
+}
+defineEl('synth-copy', CopyElement);
 class Enhance extends Function {
-    id = 3
+    id = 6
     params = {}
 
     constructor(enhance, feedback) {
@@ -2170,7 +2381,7 @@ class EnhanceElement extends SynthElementBase {
 }
 defineEl('synth-enhance', EnhanceElement);
 class GammaCorrect extends Function {
-    id = 4
+    id = 7
     params = {}
 
     constructor(gamma_correction, feedback) {
@@ -2197,7 +2408,7 @@ class GammaCorrectElement extends SynthElementBase {
 }
 defineEl('synth-gammacorrect', GammaCorrectElement);
 class Greyscale extends Function {
-    id = 5
+    id = 8
     params = {}
 
     constructor(greyscale_luminance, feedback) {
@@ -2224,7 +2435,7 @@ class GreyscaleElement extends SynthElementBase {
 }
 defineEl('synth-greyscale', GreyscaleElement);
         class Halftone extends Function {
-            id = 6
+            id = 9
             params = {}
 
             constructor(halftone_factor, halftone_invert, halftone_strength, feedback) {
@@ -2253,7 +2464,7 @@ this.params.halftone_strength = halftone_strength;
         }
         defineEl('synth-halftone', HalftoneElement);
         class HueShift extends Function {
-            id = 7
+            id = 10
             params = {}
 
             constructor(hue_shift, saturate_shift, feedback) {
@@ -2281,7 +2492,7 @@ this.params.saturate_shift = saturate_shift;
         }
         defineEl('synth-hueshift', HueShiftElement);
 class InvertColor extends Function {
-    id = 8
+    id = 11
     params = {}
 
     constructor(feedback) {
@@ -2306,8 +2517,35 @@ class InvertColorElement extends SynthElementBase {
     }
 }
 defineEl('synth-invertcolor', InvertColorElement);
+class Multiply extends Function {
+    id = 12
+    params = {}
+
+    constructor(multiply_map, feedback) {
+        super(feedback || 0);
+        this.params.multiply_map = multiply_map;
+
+    }
+}
+
+class MultiplyElement extends SynthElementBase {
+    get_title() {
+        return "Multiply";
+    }
+
+    get_fn() {
+        return Multiply;
+    }
+
+    get_args() {
+        return {
+            multiply_map: new ChannelSelect(this.synth)
+        }
+    }
+}
+defineEl('synth-multiply', MultiplyElement);
         class Noise extends Function {
-            id = 9
+            id = 13
             params = {}
 
             constructor(noise_r, noise_g, noise_b, feedback) {
@@ -2336,7 +2574,7 @@ this.params.noise_b = noise_b;
         }
         defineEl('synth-noise', NoiseElement);
         class Offset extends Function {
-            id = 10
+            id = 14
             params = {}
 
             constructor(offsets_x, offsets_y, feedback) {
@@ -2364,7 +2602,7 @@ this.params.offsets_y = offsets_y;
         }
         defineEl('synth-offset', OffsetElement);
         class Oscillator extends Function {
-            id = 11
+            id = 15
             params = {}
 
             constructor(osc_f, osc_c, osc_color, feedback) {
@@ -2393,7 +2631,7 @@ this.params.osc_color = osc_color;
         }
         defineEl('synth-oscillator', OscillatorElement);
         class Picture extends Function {
-            id = 12
+            id = 16
             params = {}
 
             constructor(picture_texture, picture_dimensions, feedback) {
@@ -2421,7 +2659,7 @@ this.params.picture_dimensions = picture_dimensions;
         }
         defineEl('synth-picture', PictureElement);
 class Pixelate extends Function {
-    id = 13
+    id = 17
     params = {}
 
     constructor(pixelate_factor, feedback) {
@@ -2448,7 +2686,7 @@ class PixelateElement extends SynthElementBase {
 }
 defineEl('synth-pixelate', PixelateElement);
         class Recolor extends Function {
-            id = 14
+            id = 18
             params = {}
 
             constructor(recolor_new_r, recolor_new_g, recolor_new_b, feedback) {
@@ -2477,7 +2715,7 @@ this.params.recolor_new_b = recolor_new_b;
         }
         defineEl('synth-recolor', RecolorElement);
         class ReduceColors extends Function {
-            id = 15
+            id = 19
             params = {}
 
             constructor(reduce_colors_data, reduce_colors_count, feedback) {
@@ -2505,7 +2743,7 @@ this.params.reduce_colors_count = reduce_colors_count;
         }
         defineEl('synth-reducecolors', ReduceColorsElement);
         class Reflector extends Function {
-            id = 16
+            id = 20
             params = {}
 
             constructor(reflect_theta, reflect_y, reflect_x, feedback) {
@@ -2534,7 +2772,7 @@ this.params.reflect_x = reflect_x;
         }
         defineEl('synth-reflector', ReflectorElement);
         class Ripple extends Function {
-            id = 17
+            id = 21
             params = {}
 
             constructor(ripple_freq, ripple_c, ripple_strength, ripple_center, feedback) {
@@ -2564,7 +2802,7 @@ this.params.ripple_center = ripple_center;
         }
         defineEl('synth-ripple', RippleElement);
 class Rotate extends Function {
-    id = 18
+    id = 22
     params = {}
 
     constructor(rotation, feedback) {
@@ -2591,7 +2829,7 @@ class RotateElement extends SynthElementBase {
 }
 defineEl('synth-rotate', RotateElement);
         class Superformula extends Function {
-            id = 19
+            id = 23
             params = {}
 
             constructor(sf_color, sf_m, sf_n, sf_thickness, sf_smooth_edges, feedback) {
@@ -2622,7 +2860,7 @@ this.params.sf_smooth_edges = sf_smooth_edges;
         }
         defineEl('synth-superformula', SuperformulaElement);
 class Swirl extends Function {
-    id = 20
+    id = 24
     params = {}
 
     constructor(factor, feedback) {
@@ -2649,7 +2887,7 @@ class SwirlElement extends SynthElementBase {
 }
 defineEl('synth-swirl', SwirlElement);
         class Threshold extends Function {
-            id = 21
+            id = 25
             params = {}
 
             constructor(threshold_high_r, threshold_high_g, threshold_high_b, thresholds, feedback) {
@@ -2679,7 +2917,7 @@ this.params.thresholds = thresholds;
         }
         defineEl('synth-threshold', ThresholdElement);
         class Tile extends Function {
-            id = 22
+            id = 26
             params = {}
 
             constructor(tile_x, tile_y, feedback) {
@@ -2707,7 +2945,7 @@ this.params.tile_y = tile_y;
         }
         defineEl('synth-tile', TileElement);
         class Wavy extends Function {
-            id = 23
+            id = 27
             params = {}
 
             constructor(wavy_freq_x, wavy_c_x, wavy_strength_x, wavy_freq_y, wavy_c_y, wavy_strength_y, feedback) {
@@ -2739,7 +2977,7 @@ this.params.wavy_strength_y = wavy_strength_y;
         }
         defineEl('synth-wavy', WavyElement);
         class Webcam extends Function {
-            id = 24
+            id = 28
             params = {}
 
             constructor(webcam_texture, webcam_dimensions, webcam_invert_x, webcam_invert_y, feedback) {
@@ -2769,7 +3007,7 @@ this.params.webcam_invert_y = webcam_invert_y;
         }
         defineEl('synth-webcam', WebcamElement);
         class Zoom extends Function {
-            id = 25
+            id = 29
             params = {}
 
             constructor(zoom, zoom_center, feedback) {
@@ -2796,7 +3034,7 @@ this.params.zoom_center = zoom_center;
             }
         }
         defineEl('synth-zoom', ZoomElement);
-const MODULE_IDS = {"blur": {class: "BlurElement", tag: "space"},"checkerfill": {class: "CheckerfillElement", tag: "space"},"enhance": {class: "EnhanceElement", tag: "color"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"greyscale": {class: "GreyscaleElement", tag: "color"},"halftone": {class: "HalftoneElement", tag: "space"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"ripple": {class: "RippleElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"wavy": {class: "WavyElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
+const MODULE_IDS = {"blur": {class: "BlurElement", tag: "space"},"checkerfill": {class: "CheckerfillElement", tag: "space"},"composite": {class: "CompositeElement", tag: "channels"},"condzoom": {class: "CondzoomElement", tag: "channels"},"copy": {class: "CopyElement", tag: "channels"},"enhance": {class: "EnhanceElement", tag: "color"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"greyscale": {class: "GreyscaleElement", tag: "color"},"halftone": {class: "HalftoneElement", tag: "space"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"multiply": {class: "MultiplyElement", tag: "channels"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"ripple": {class: "RippleElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"wavy": {class: "WavyElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
 // ---------- END build/module_lib.js ------
 
 // ---------- meta_module.js ----------
@@ -2811,27 +3049,30 @@ class ModuleElement extends SynthStageBase {
     }
 
     setup_synth_state(synth, module) {
+        const channelid = synth.active_channel;
         for (let idx of module.selection) {
-            const name = synth.stages[idx];
+            const name = synth._get_stages(channelid)[idx];
             this.stages.push(name);
-            this.stageModules[name] = synth.stageModules[name];
+            this.stageModules[name] = synth._get_stageModules(channelid)[name];
         }
 
         const counter = globalCounters[this.get_title()] || 0;
         globalCounters[this.get_title()] = counter + 1;
         this.name = `${this.get_title()}-${counter}`;
 
-        let old_name = synth.stages[module.selection[0]];
-        synth.stages[module.selection[0]] = this.name;
-        delete synth.stageModules[old_name];
-        synth.stageModules[this.name] = new Stage(this, (t) => { this.step(t); });
+        let old_name = synth._get_stages(channelid)[module.selection[0]];
+        synth._get_stages(channelid)[module.selection[0]] = this.name;
+        delete synth._get_stageModules(channelid)[old_name];
+        synth._get_stageModules(channelid)[this.name] = new Stage(this, (t) => { this.step(t); });
 
         console.log("removed stage", old_name, module.selection);
 
         for (let _i = 1; _i < module.selection.length; _i++) {
-            console.log("removing stage", synth.stages[module.selection[1]]);
-            synth.remove_stage(synth.stages[module.selection[1]]);
+            console.log("removing stage", synth._get_stages(channelid)[module.selection[1]]);
+            synth.remove_stage(channelid, synth._get_stages(channelid)[module.selection[1]]);
         }
+
+        // TODO find similar patterns?
     }
 
     constructor(synth, module) {
@@ -2901,13 +3142,14 @@ class ModuleCreator {
         this.container.appendChild(name);
         this.container.appendChild(document.createElement("br"));
 
-        if (synth.stages.length == 0) {
+        const channelid = synth.active_channel;
+        if (synth._get_stages(channelid).length == 0) {
             this.error.innerText = "No stages in synth! Please add some stages before creating a new module.";
         } else {
             const selection_container = document.createElement('div');
             selection_container.className = 'create-module-selection';
-            for (let i = 0; i < synth.stages.length; i++) {
-                const stage = synth.stages[i];
+            for (let i = 0; i < synth._get_stages(channelid).length; i++) {
+                const stage = synth._get_stages(channelid)[i];
                 const label = document.createElement('label');
                 label.for = stage;
                 label.innerText = stage;
@@ -2974,7 +3216,7 @@ class ModuleCreator {
         let seen_true = false;
         let expect_absent = false;
         let invalid = false;
-        for (let i = 0; i < synth.stages.length; i++) {
+        for (let i = 0; i < synth._get_stages(channelid).length; i++) {
             if (this.selection.has(i)) {
                 if (expect_absent) {
                     invalid = true;
@@ -2998,13 +3240,14 @@ class ModuleCreator {
     }
 }
 
-function append_meta_module(name, initializer, length, ui, synth) {
-    loaddata(initializer, ui, synth);
+function append_meta_module(name, initializer, length, ui_container, synth) {
+    const chan = synth.active_channel;
+    loaddata([initializer], ui_container, synth, true);
     const meta_module = {
         name: name,
-        selection: [...Array(length).keys()].map(x => synth.stages.length - length + x)
+        selection: [...Array(length).keys()].map(x => synth._get_stages(chan).length - length + x)
     };
-    add_meta_module(meta_module, ui, synth);
+    add_meta_module(meta_module, ui_container.querySelector(`#ui-${chan}`), synth);
 }
 
 function register_module(name, meta_module_desc) {
@@ -3020,7 +3263,7 @@ function register_module(name, meta_module_desc) {
 }
 
 function add_meta_module(module, ui, synth) {
-    console.log(...synth.stages);
+    console.log(...synth._get_stages(synth.active_channel));
     const synth_module = new ModuleElement(synth, module);
     for (let idx of module.selection)
         ui.children[idx].reparent_to_module(synth_module);
@@ -3031,10 +3274,9 @@ function add_meta_module(module, ui, synth) {
         child.remove();
         synth_module.appendChild(child);
     }
-    console.log(...synth.stages);
 }
 
-function setup_meta_module(ui, synth) {
+function setup_meta_module(ui_container, synth) {
     const createbtn = document.getElementById("create-module");
     createbtn.addEventListener('click', async () => {
         let resolver = null;
@@ -3048,6 +3290,7 @@ function setup_meta_module(ui, synth) {
         if (!meta_module_defn)
             return;
 
+        const ui = ui_container.querySelector(`#ui-${synth.active_channel}`);
         const module_initializer = [];
         for (let idx of meta_module_defn.selection) {
             module_initializer.push(ui.children[idx].save());
@@ -3076,7 +3319,7 @@ function setup_meta_module(ui, synth) {
 // ---------- END meta_module.js ------
 
 // ---------- recording.js ----------
-function setup_recording(ui, synth) {
+function setup_recording(synth) {
     const start_btn = document.getElementById("startstop");
     let started = true;
     start_btn.addEventListener("click", () => {
@@ -3145,26 +3388,101 @@ function setup_recording(ui, synth) {
 }
 // ---------- END recording.js ------
 
-// ---------- saveload.js ----------
-function loaddata(savedata, ui, synth) {
-    // TODO validation
-    for (let elem of savedata) {
-        if (elem.module) {
-            // if (!meta_modules[elem.module.name])
-            //     throw new Error("Unexpected module"); // TODO ui for this error
-            const count = elem.module.selection.length;
-            console.group(`ADD ${elem.module.name}`);
-            // TODO take in MetaModuleManager obj or smth
-            append_meta_module(elem.module.name, elem.args, count, ui, synth);
-            console.groupEnd(`ADD ${elem.module.name}`);
-        } else {
-            const moduleElem = eval(elem.title + 'Element');
-            const new_elem = new moduleElem(synth);
-            ui.appendChild(new_elem);
-            new_elem.load(elem);
-            console.log('ADD', new_elem.get_title());
-        }
+// ---------- channelui.js ----------
+function setup_channels(ui_container, synth) {
+    const chan_select = document.getElementById("channel-select");
+    const render_select = document.getElementById("channel-render");
+
+    chan_select.addEventListener("change", () => {
+        const curr_ui = ui_container.querySelector(`#ui-${synth.active_channel}`);
+        curr_ui.style.display = "none";
+
+        synth.active_channel = parseInt(chan_select.value);
+
+        const new_ui = ui_container.querySelector(`#ui-${synth.active_channel}`);
+        new_ui.style.display = "";
+    });
+    chan_select.value = "0";
+
+    render_select.addEventListener("change", () => {
+        synth.render_channel = parseInt(render_select.value);
+    });
+    render_select.value = "0";
+
+    const add_new_chan_option = () => {
+        const new_chan = synth.channels.length - 1;
+        add_new_channel_ui(ui_container, new_chan);
+        const new_opt = document.createElement('option');
+        new_opt.innerText = new_chan;
+        new_opt.value = new_chan;
+
+        chan_select.appendChild(new_opt);
+        chan_select.value = new_chan;
+
+        chan_select.dispatchEvent(new Event("change"));
+
+        console.log("Appending to render_select", new_chan);
+        const new_opt_1 = document.createElement('option');
+        new_opt_1.innerText = new_chan;
+        new_opt_1.value = new_chan;
+        render_select.appendChild(new_opt_1);
+        render_select.value = new_chan;
+
+        render_select.dispatchEvent(new Event("change"));
     }
+
+    const add_chan_btn = document.getElementById("channel-add");
+    add_chan_btn.addEventListener("click", () => {
+        synth.add_channel();
+        add_new_chan_option();
+    });
+
+    ui_container.addEventListener("add_channel", add_new_chan_option);
+}
+// ---------- END channelui.js ------
+
+// ---------- saveload.js ----------
+function loaddata(savedatas, ui_container, synth, into_current) {
+    // TODO validation
+    const chan_count = synth.channels.length;
+
+    let start_chan = chan_count - 1;
+
+    if (into_current) {
+        start_chan = synth.active_channel;
+    } else {
+        // find last channel that's empty
+        while (start_chan >= 0 && synth.channels[start_chan].stages.length == 0)
+            start_chan--;
+        start_chan += 1;
+    }
+
+    savedatas.forEach((savedata, chan_id) => {
+        let curr_chan = start_chan + chan_id;
+        if (curr_chan >= synth.channels.length) {
+            synth.add_channel();
+            ui_container.dispatchEvent(new Event("add_channel"));
+        }
+
+        synth.active_channel = curr_chan;
+        for (let elem of savedata) {
+            if (elem.module) {
+                // if (!meta_modules[elem.module.name])
+                //     throw new Error("Unexpected module"); // TODO ui for this error
+                const count = elem.module.selection.length;
+                console.group(`ADD ${elem.module.name}`);
+                // TODO take in MetaModuleManager obj or smth
+                append_meta_module(elem.module.name, elem.args, count, ui_container, synth);
+                console.groupEnd(`ADD ${elem.module.name}`);
+            } else {
+                const moduleElem = eval(elem.title + 'Element');
+                const new_elem = new moduleElem(synth);
+                ui_container.querySelector(`#ui-${curr_chan}`).appendChild(new_elem);
+                new_elem.load(elem);
+                console.log('ADD', new_elem.get_title());
+            }
+        }
+    });
 }
 
 function load_meta_modules(moduledata_descs) {
@@ -3234,7 +3552,7 @@ function _download(data, filename) {
     document.body.removeChild(downloader);
 }
 
-function setup_save_load(ui, synth, settingsui) {
+function setup_save_load(ui_container, synth, settingsui) {
     // magic + 4 byte length + 1 byte per RGBA values
     // this is because we can't use the A channel because of premultiplied
     // stuff, TODO fix that
@@ -3243,13 +3561,17 @@ function setup_save_load(ui, synth, settingsui) {
         (4 * synth.dimensions[0] * synth.dimensions[1] - header_len) / 4);
 
     document.getElementById("save").addEventListener('click', () => {
-        const saved = [];
-        for (let i = 0; i < ui.children.length; i++) {
-            saved.push(ui.children[i].save());
+        const channels = [];
+        for (let i = 0; i < ui_container.children.length; i++) {
+            const ui = ui_container.children[i];
+            const channel = [];
+            for (let j = 0; j < ui.children.length; j++)
+                channel.push(ui.children[j].save());
+            channels.push(channel);
         }
 
         const saveobj = {
-            stages: saved,
+            channels: channels,
             modules: meta_modules,
             settings: settingsui.save()
         };
@@ -3321,9 +3643,11 @@ function setup_save_load(ui, synth, settingsui) {
 
     const do_load = (name, savedata) => {
         if (savedata.modules)
-            load_meta_modules(savedata.modules, ui, synth);
+            load_meta_modules(savedata.modules);
         if (savedata.stages)
-            loaddata(savedata.stages, ui, synth);
+            loaddata([savedata.stages], ui_container, synth);
+        if (savedata.channels)
+            loaddata(savedata.channels, ui_container, synth);
         if (savedata.settings)
             settingsui.load(savedata.settings);
         if (synth.name === "") {
@@ -3374,7 +3698,7 @@ try {
 
 // ---------- settings.js ----------
 class SettingsUI {
-    constructor(ui, synth) {
+    constructor(ui_container, synth) {
         this.name_inp = document.getElementById("name");
         this.clock_inp = document.getElementById("clock_speed");
         // const autosave_btn = document.getElementById("autosave_enable");
@@ -3382,20 +3706,25 @@ class SettingsUI {
 
         this.name_inp.addEventListener("change", () => {
             synth.name = this.name_inp.value;
-            ui.dispatchEvent(new Event("namechange"));
+            ui_container.dispatchEvent(new Event("namechange"));
         });
 
-        ui.addEventListener("namechange", () => {
+        ui_container.addEventListener("namechange", () => {
             this.name_inp.value = synth.name;
         });
 
         this.clock_inp.addEventListener("change", () => {
             synth.clock_speed = this.clock_inp.value;
         });
+        this.clock_inp.value = 1;
+
+        // TODO default channel
 
         // this.auto_dims_btn = document.getElementById("auto_dims_enable");
         this.render_width_inp = document.getElementById("render_width");
+        this.render_width_inp.value = 1000;
         this.render_height_inp = document.getElementById("render_height");
+        this.render_height_inp.value = 1000;
         // this.render_dims = document.getElementById("render_dims");
         // this.target_fps_container = document.getElementById("target_fps_container");
         // this.target_fps = document.getElementById("target_fps");
@@ -3450,6 +3779,12 @@ class Stage {
     }
 }
 
+class Channel {
+    enable = true;
+    stages = []; // List[str]
+    stageModules = {}; // Map[str, Stage]
+}
+
 class Synth {
     name = "";
     clock_speed = 1;
@@ -3459,8 +3794,9 @@ class Synth {
 
     dimensions = [1000, 1000];
 
-    stages = []; // List[str]
-    stageModules = {}; // Map[str, Stage]
+    active_channel = 0; // TODO Synth should not track active channel! That belongs to the non-existant UI object.
+    render_channel = 0;
+    channels = [new Channel()];
 
     transform = {
         center: [ 0.5, 0.5 ],
@@ -3492,8 +3828,21 @@ class Synth {
         const bufferInfo = twgl.createBufferInfoFromArrays(this.gl, bufferArrays);
         setupProgram(this.gl, this.programInfo, bufferInfo);
 
-        this.fbs = new FrameBufferManager(this.gl, this.dimensions);
+        this.fbs = [new FrameBufferManager(this.gl, this.dimensions)];
         this.canvas = canvas;
+    }
+
+    add_channel() {
+        this.channels.push(new Channel());
+        this.fbs.push(new FrameBufferManager(this.gl, this.dimensions));
+    }
+
+    _get_stages(channelid) {
+        return this.channels[channelid].stages;
+    }
+
+    _get_stageModules(channelid) {
+        return this.channels[channelid].stageModules;
     }
 
     resize(new_dims) {
@@ -3503,7 +3852,8 @@ class Synth {
 
         this.gl.viewport(0, 0, ...this.dimensions);
 
-        this.fbs = new FrameBufferManager(this.gl, this.dimensions);
+        for (let i = 0; i < this.channels.length; i++)
+            this.fbs[i] = new FrameBufferManager(this.gl, this.dimensions);
     }
 
     last_render_time = 0;
@@ -3514,65 +3864,72 @@ class Synth {
         this.dispatchEvent
         let time = time_ * this.clock_speed;
 
-        const process_stages = (stage, stageid) => {
+        const process_stages = (fbs, stage, stageid) => {
             const fn_params = stage.fn_params;
 
-            if (!fn_params.enable) {
+            if (!fn_params.enable)
                 return;
-            }
             stage.step(time);
 
             if (stageid == 0)
                 this.reset_transform();
 
-            if (fn_params instanceof Synth || fn_params instanceof ModuleElement) {
+            if (fn_params instanceof Channel || fn_params instanceof ModuleElement) {
                 fn_params.stages.forEach((name, stageid_) => {
                     const fn_params_ = fn_params.stageModules[name];
 
-                    process_stages(fn_params_, stageid + 1 + stageid_);
+                    process_stages(fbs, fn_params_, stageid + 1 + stageid_);
                 });
                 return;
             } else if (fn_params instanceof TransformElement) {
-                // if (fn_params.params["clear transform"]) {
-                //     this.reset_transform();
-                // } else {
                 this.transform.scale = fn_params.params.scale;
                 this.transform.center = [...fn_params.params.center];
                 this.transform.rotation = fn_params.params.rotation;
-                // }
                 return;
             }
 
-            this.fbs.bind_dst();
+            fbs.bind_dst();
             const params = {
                 u_dimensions: this.dimensions,
                 u_tex_dimensions: this.dimensions,
-                u_texture: this.fbs.src(),
+                u_texture: fbs.src(),
                 u_transform_center: this.transform.center,
                 u_transform_scale: this.transform.scale,
                 u_transform_rotation: this.transform.rotation,
                 u_function: fn_params.id,
-                u_stage: stageid,
                 u_feedback: fn_params.feedback,
                 u_constrain_to_transform: fn_params.constrain,
             };
             for (let key of Object.keys(fn_params.params)) {
-                params['u_' + key] = fn_params.params[key];
+                let value = fn_params.params[key];
+                if (value instanceof ChannelId)
+                    value = this.fbs[value.id].src();
+                params['u_' + key] = value;
             }
 
             twgl.setUniforms(this.programInfo, params);
             render(this.gl);
-            this.fbs.flipflop();
+
+            // clear channel textures
+            for (let key of Object.keys(fn_params.params)) {
+                let value = fn_params.params[key];
+                if (value instanceof ChannelId) {
+                    params['u_' + key] = 0;
+                }
+            }
+            twgl.setUniforms(this.programInfo, params);
+
+            fbs.flipflop();
         };
 
-        process_stages(new Stage(this, (t) => {}), -1);
+        for (let i = 0; i < this.channels.length; i++)
+            process_stages(this.fbs[i], new Stage(this.channels[i], (t) => {}), -1);
 
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
         twgl.setUniforms(this.programInfo, {
             u_tex_dimensions: this.dimensions,
-            u_texture: this.fbs.src(),
-            u_function: 0,
-            u_stage: this.stages.length + 1,
+            u_texture: this.fbs[this.render_channel].src(),
+            u_function: 0, // DRAW
             u_feedback: 1,
         });
         render(this.gl);
@@ -3609,39 +3966,39 @@ class Synth {
         // }
     }
 
-    set_target_fps(fps) {
-        this.target_time_ms = 1000 / fps;
-    }
+    // set_target_fps(fps) {
+    //     this.target_time_ms = 1000 / fps;
+    // }
 
-    begin_auto_scale() {
-        this.auto_scaling = true;
-    }
+    // begin_auto_scale() {
+    //     this.auto_scaling = true;
+    // }
 
-    stop_auto_scale() {
-        this.auto_scaling = false;
-    }
+    // stop_auto_scale() {
+    //     this.auto_scaling = false;
+    // }
 
     get_frame_data(array) {
         this.gl.readPixels(0, 0, ...this.dimensions, this.gl.RGBA, this.gl.UNSIGNED_BYTE, array);
     }
 
-    add_stage(name, module) {
-        if (this.stages.indexOf(name) != -1)
+    add_stage(chan, name, module) {
+        if (this.channels[chan].stages.indexOf(name) != -1)
             throw new Error("name collision");
-        this.stageModules[name] = module;
-        this.stages.push(name);
+        this.channels[chan].stageModules[name] = module;
+        this.channels[chan].stages.push(name);
     }
 
-    remove_stage(name) {
-        const idx = this.stages.indexOf(name);
+    remove_stage(chan, name) {
+        const idx = this.channels[chan].stages.indexOf(name);
         if (idx == -1)
             throw new Error("no such stage");
-        delete this.stageModules[name];
-        this.stages.splice(idx, 1);
+        delete this.channels[chan].stageModules[name];
+        this.channels[chan].stages.splice(idx, 1);
     }
 
-    toggle_stage(name, state) {
-        this.stageModules[name].fn_params.enable = state;
+    toggle_stage(chan, name, state) {
+        this.channels[chan].stageModules[name].fn_params.enable = state;
     }
 
     running = null;
@@ -3677,7 +4034,7 @@ class Synth {
 
 function setup_controler() {
     let current_controls = 0;
-    const num_controls = 4;
+    const num_controls = 5;
     document.getElementById("controls-next").addEventListener("click", () => {
         document.getElementById(`controls-${current_controls}`).style.display = "none";
         current_controls += 1;
@@ -3693,9 +4050,9 @@ function setup_controler() {
     });
 }
 
-const add_new_tags = ["generator", "space", "color"];
+const add_new_tags = ["generator", "space", "color", "channels"];
 let current_add_new_tag = 0;
-function setup_add_new_stage(ui, synth) {
+function setup_add_new_stage(ui_container, synth) {
     const update_add_new = (new_tag) => {
         new_tag = (new_tag + add_new_tags.length) % add_new_tags.length;
 
@@ -3721,6 +4078,7 @@ function setup_add_new_stage(ui, synth) {
         selectors[tag] = document.getElementById(`add_new_${tag}_select`);
         buttons[tag].addEventListener('click', () => {
             const stageElem = eval(selectors[tag].value);
+            const ui = ui_container.querySelector(`#ui-${synth.active_channel}`);
             ui.appendChild(new stageElem(synth));
         });
     }
@@ -3782,28 +4140,34 @@ async function synth_main(canvas) {
     document.getElementById("display-container").addEventListener("click", hiderightmenu);
 
 
-    const ui = document.getElementById("ui-container");
-    ui.addEventListener("namechange", () => {
+    const ui_container = document.getElementById("ui-container");
+    ui_container.addEventListener("namechange", () => {
         title.innerText = synth.name;
     });
 
-    const settings = new SettingsUI(ui, synth);
+    const settings = new SettingsUI(ui_container, synth);
     setup_controler();
-    setup_add_new_stage(ui, synth);
-    setup_meta_module(ui, synth);
-    setup_save_load(ui, synth, settings);
-    setup_recording(ui, synth);
+    setup_channels(ui_container, synth);
+
+    setup_add_new_stage(ui_container, synth);
+    setup_meta_module(ui_container, synth);
+    // TODO channelize saveload
+    setup_save_load(ui_container, synth, settings);
+    setup_recording(synth);
 }
 
 function loadStaticSynth(canvas, data, cb) {
     const synth = new Synth(canvas)
     synth.run();
 
-    const ui = document.createElement('div');
+    const ui_container = document.createElement('div');
+    const ui0 = document.createElement('div');
+    ui0.id = "ui-0";
+    ui_container.appendChild(ui0);
     // note that meta-modules don't need to be loaded
-    loaddata(data.stages, ui, synth);
+    loaddata(data.stages, ui_container, synth);
     if (cb) {
-        cb(ui);
+        cb(ui_container);
     }
 
     return synth;
