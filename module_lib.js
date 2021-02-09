@@ -54,8 +54,37 @@ this.params.checkerfill_size = checkerfill_size;
             }
         }
         defineEl('synth-checkerfill', CheckerfillElement);
-        class Composite extends Function {
+        class Chromakey extends Function {
             id = 3
+            params = {}
+
+            constructor(chromakey_key, chromakey_strength, chromakey_map, feedback) {
+                super(feedback || 0);
+                this.params.chromakey_key = chromakey_key;
+this.params.chromakey_strength = chromakey_strength;
+this.params.chromakey_map = chromakey_map;
+
+            }
+        }
+
+        class ChromakeyElement extends SynthElementBase {
+            get_title() {
+                return "Chromakey";
+            }
+
+            get_fn() {
+                return Chromakey;
+            }
+
+            get_args() {
+                return {
+                    chromakey_key: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [0,1,0]),chromakey_strength: new FloatBar([0,2], 0.25),chromakey_map: new ChannelSelect(this.synth)
+                }
+            }
+        }
+        defineEl('synth-chromakey', ChromakeyElement);
+        class Composite extends Function {
+            id = 4
             params = {}
 
             constructor(composite_map_1, composite_map_2, feedback) {
@@ -83,7 +112,7 @@ this.params.composite_map_2 = composite_map_2;
         }
         defineEl('synth-composite', CompositeElement);
         class Condzoom extends Function {
-            id = 4
+            id = 5
             params = {}
 
             constructor(condzoom_strength, condzoom_map, feedback) {
@@ -111,7 +140,7 @@ this.params.condzoom_map = condzoom_map;
         }
         defineEl('synth-condzoom', CondzoomElement);
 class Copy extends Function {
-    id = 5
+    id = 6
     params = {}
 
     constructor(copy_map, feedback) {
@@ -138,7 +167,7 @@ class CopyElement extends SynthElementBase {
 }
 defineEl('synth-copy', CopyElement);
 class Enhance extends Function {
-    id = 6
+    id = 7
     params = {}
 
     constructor(enhance, feedback) {
@@ -165,7 +194,7 @@ class EnhanceElement extends SynthElementBase {
 }
 defineEl('synth-enhance', EnhanceElement);
 class GammaCorrect extends Function {
-    id = 7
+    id = 8
     params = {}
 
     constructor(gamma_correction, feedback) {
@@ -192,7 +221,7 @@ class GammaCorrectElement extends SynthElementBase {
 }
 defineEl('synth-gammacorrect', GammaCorrectElement);
 class Greyscale extends Function {
-    id = 8
+    id = 9
     params = {}
 
     constructor(greyscale_luminance, feedback) {
@@ -219,7 +248,7 @@ class GreyscaleElement extends SynthElementBase {
 }
 defineEl('synth-greyscale', GreyscaleElement);
         class Halftone extends Function {
-            id = 9
+            id = 10
             params = {}
 
             constructor(halftone_factor, halftone_invert, halftone_strength, feedback) {
@@ -248,7 +277,7 @@ this.params.halftone_strength = halftone_strength;
         }
         defineEl('synth-halftone', HalftoneElement);
         class HueShift extends Function {
-            id = 10
+            id = 11
             params = {}
 
             constructor(hue_shift, saturate_shift, feedback) {
@@ -276,7 +305,7 @@ this.params.saturate_shift = saturate_shift;
         }
         defineEl('synth-hueshift', HueShiftElement);
 class InvertColor extends Function {
-    id = 11
+    id = 12
     params = {}
 
     constructor(feedback) {
@@ -302,7 +331,7 @@ class InvertColorElement extends SynthElementBase {
 }
 defineEl('synth-invertcolor', InvertColorElement);
 class Multiply extends Function {
-    id = 12
+    id = 13
     params = {}
 
     constructor(multiply_map, feedback) {
@@ -329,7 +358,7 @@ class MultiplyElement extends SynthElementBase {
 }
 defineEl('synth-multiply', MultiplyElement);
         class Noise extends Function {
-            id = 13
+            id = 14
             params = {}
 
             constructor(noise_r, noise_g, noise_b, feedback) {
@@ -358,7 +387,7 @@ this.params.noise_b = noise_b;
         }
         defineEl('synth-noise', NoiseElement);
         class Offset extends Function {
-            id = 14
+            id = 15
             params = {}
 
             constructor(offsets_x, offsets_y, feedback) {
@@ -386,7 +415,7 @@ this.params.offsets_y = offsets_y;
         }
         defineEl('synth-offset', OffsetElement);
         class Oscillator extends Function {
-            id = 15
+            id = 16
             params = {}
 
             constructor(osc_f, osc_c, osc_color, feedback) {
@@ -415,7 +444,7 @@ this.params.osc_color = osc_color;
         }
         defineEl('synth-oscillator', OscillatorElement);
         class Picture extends Function {
-            id = 16
+            id = 17
             params = {}
 
             constructor(picture_texture, picture_dimensions, feedback) {
@@ -443,7 +472,7 @@ this.params.picture_dimensions = picture_dimensions;
         }
         defineEl('synth-picture', PictureElement);
 class Pixelate extends Function {
-    id = 17
+    id = 18
     params = {}
 
     constructor(pixelate_factor, feedback) {
@@ -469,8 +498,41 @@ class PixelateElement extends SynthElementBase {
     }
 }
 defineEl('synth-pixelate', PixelateElement);
+        class Polygon extends Function {
+            id = 19
+            params = {}
+
+            constructor(polygon_color, polygon_n, polygon_r, polygon_thickness, polygon_smooth_edges, polygon_fill, polygon_destructive, feedback) {
+                super(feedback || 0);
+                this.params.polygon_color = polygon_color;
+this.params.polygon_n = polygon_n;
+this.params.polygon_r = polygon_r;
+this.params.polygon_thickness = polygon_thickness;
+this.params.polygon_smooth_edges = polygon_smooth_edges;
+this.params.polygon_fill = polygon_fill;
+this.params.polygon_destructive = polygon_destructive;
+
+            }
+        }
+
+        class PolygonElement extends SynthElementBase {
+            get_title() {
+                return "Polygon";
+            }
+
+            get_fn() {
+                return Polygon;
+            }
+
+            get_args() {
+                return {
+                    polygon_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0]),polygon_n: new IntEntry([3,100], 4),polygon_r: new FloatBar([0,1], 0.49999),polygon_thickness: new FloatBar([0,1], 0.025),polygon_smooth_edges: new BoolEntry(true),polygon_fill: new BoolEntry(false),polygon_destructive: new BoolEntry(false)
+                }
+            }
+        }
+        defineEl('synth-polygon', PolygonElement);
         class Recolor extends Function {
-            id = 18
+            id = 20
             params = {}
 
             constructor(recolor_new_r, recolor_new_g, recolor_new_b, feedback) {
@@ -499,7 +561,7 @@ this.params.recolor_new_b = recolor_new_b;
         }
         defineEl('synth-recolor', RecolorElement);
         class ReduceColors extends Function {
-            id = 19
+            id = 21
             params = {}
 
             constructor(reduce_colors_data, reduce_colors_count, feedback) {
@@ -527,7 +589,7 @@ this.params.reduce_colors_count = reduce_colors_count;
         }
         defineEl('synth-reducecolors', ReduceColorsElement);
         class Reflector extends Function {
-            id = 20
+            id = 22
             params = {}
 
             constructor(reflect_theta, reflect_y, reflect_x, feedback) {
@@ -556,7 +618,7 @@ this.params.reflect_x = reflect_x;
         }
         defineEl('synth-reflector', ReflectorElement);
         class Ripple extends Function {
-            id = 21
+            id = 23
             params = {}
 
             constructor(ripple_freq, ripple_c, ripple_strength, ripple_center, feedback) {
@@ -586,7 +648,7 @@ this.params.ripple_center = ripple_center;
         }
         defineEl('synth-ripple', RippleElement);
 class Rotate extends Function {
-    id = 22
+    id = 24
     params = {}
 
     constructor(rotation, feedback) {
@@ -613,16 +675,18 @@ class RotateElement extends SynthElementBase {
 }
 defineEl('synth-rotate', RotateElement);
         class Superformula extends Function {
-            id = 23
+            id = 25
             params = {}
 
-            constructor(sf_color, sf_m, sf_n, sf_thickness, sf_smooth_edges, feedback) {
+            constructor(sf_color, sf_m, sf_n, sf_thickness, sf_smooth_edges, sf_fill, sf_destructive, feedback) {
                 super(feedback || 0);
                 this.params.sf_color = sf_color;
 this.params.sf_m = sf_m;
 this.params.sf_n = sf_n;
 this.params.sf_thickness = sf_thickness;
 this.params.sf_smooth_edges = sf_smooth_edges;
+this.params.sf_fill = sf_fill;
+this.params.sf_destructive = sf_destructive;
 
             }
         }
@@ -638,13 +702,13 @@ this.params.sf_smooth_edges = sf_smooth_edges;
 
             get_args() {
                 return {
-                    sf_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0]),sf_m: new FloatBar([1,10], 1),sf_n: new VecEntry(3, ["n1","n2","n3"], [[0, 20],[0, 20],[0, 20],], [20,20,20]),sf_thickness: new FloatBar([0,1], 0.5),sf_smooth_edges: new BoolEntry(true)
+                    sf_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0]),sf_m: new FloatBar([1,10], 1),sf_n: new VecEntry(3, ["n1","n2","n3"], [[0, 20],[0, 20],[0, 20],], [20,20,20]),sf_thickness: new FloatBar([0,1], 0.5),sf_smooth_edges: new BoolEntry(true),sf_fill: new BoolEntry(false),sf_destructive: new BoolEntry(false)
                 }
             }
         }
         defineEl('synth-superformula', SuperformulaElement);
 class Swirl extends Function {
-    id = 24
+    id = 26
     params = {}
 
     constructor(factor, feedback) {
@@ -671,7 +735,7 @@ class SwirlElement extends SynthElementBase {
 }
 defineEl('synth-swirl', SwirlElement);
         class Threshold extends Function {
-            id = 25
+            id = 27
             params = {}
 
             constructor(threshold_high_r, threshold_high_g, threshold_high_b, thresholds, feedback) {
@@ -701,7 +765,7 @@ this.params.thresholds = thresholds;
         }
         defineEl('synth-threshold', ThresholdElement);
         class Tile extends Function {
-            id = 26
+            id = 28
             params = {}
 
             constructor(tile_x, tile_y, feedback) {
@@ -729,7 +793,7 @@ this.params.tile_y = tile_y;
         }
         defineEl('synth-tile', TileElement);
         class Wavy extends Function {
-            id = 27
+            id = 29
             params = {}
 
             constructor(wavy_freq_x, wavy_c_x, wavy_strength_x, wavy_freq_y, wavy_c_y, wavy_strength_y, feedback) {
@@ -761,7 +825,7 @@ this.params.wavy_strength_y = wavy_strength_y;
         }
         defineEl('synth-wavy', WavyElement);
         class Webcam extends Function {
-            id = 28
+            id = 30
             params = {}
 
             constructor(webcam_texture, webcam_dimensions, webcam_invert_x, webcam_invert_y, feedback) {
@@ -791,7 +855,7 @@ this.params.webcam_invert_y = webcam_invert_y;
         }
         defineEl('synth-webcam', WebcamElement);
         class Zoom extends Function {
-            id = 29
+            id = 31
             params = {}
 
             constructor(zoom, zoom_center, feedback) {
@@ -818,4 +882,4 @@ this.params.zoom_center = zoom_center;
             }
         }
         defineEl('synth-zoom', ZoomElement);
-const MODULE_IDS = {"blur": {class: "BlurElement", tag: "space"},"checkerfill": {class: "CheckerfillElement", tag: "space"},"composite": {class: "CompositeElement", tag: "channels"},"condzoom": {class: "CondzoomElement", tag: "channels"},"copy": {class: "CopyElement", tag: "channels"},"enhance": {class: "EnhanceElement", tag: "color"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"greyscale": {class: "GreyscaleElement", tag: "color"},"halftone": {class: "HalftoneElement", tag: "space"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"multiply": {class: "MultiplyElement", tag: "channels"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"ripple": {class: "RippleElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"wavy": {class: "WavyElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
+const MODULE_IDS = {"blur": {class: "BlurElement", tag: "space"},"checkerfill": {class: "CheckerfillElement", tag: "space"},"chromakey": {class: "ChromakeyElement", tag: "channels"},"composite": {class: "CompositeElement", tag: "channels"},"condzoom": {class: "CondzoomElement", tag: "channels"},"copy": {class: "CopyElement", tag: "channels"},"enhance": {class: "EnhanceElement", tag: "color"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"greyscale": {class: "GreyscaleElement", tag: "color"},"halftone": {class: "HalftoneElement", tag: "space"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"multiply": {class: "MultiplyElement", tag: "channels"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"polygon": {class: "PolygonElement", tag: "generator"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"ripple": {class: "RippleElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"wavy": {class: "WavyElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}

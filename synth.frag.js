@@ -99,6 +99,20 @@ void blur() {
 }
 
 
+/// modulefn: chromakey
+/// moduletag: channels
+
+uniform vec3 u_chromakey_key; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [0, 1, 0], "names": ["r", "g", "b"] }
+uniform float u_chromakey_strength; /// { "start": 0, "end": 2, "default": 0.25 }
+uniform sampler2D u_chromakey_map; /// channel
+
+void chromakey() {
+    vec2 coords = u_tex_dimensions * t_coords.xy / u_dimensions;
+    if (length(color_out.rgb - u_chromakey_key) <= u_chromakey_strength)
+        color_out.xyz = texelFetch(u_chromakey_map, ivec2(coords), 0).rgb;
+}
+
+
 /// modulefn: composite
 /// moduletag: channels
 
@@ -425,6 +439,87 @@ void pixelate() {
 }
 
 
+/// modulefn: polygon
+/// moduletag: generator
+
+uniform vec3 u_polygon_color; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [1, 0, 0], "names": ["r", "g", "b"] }
+uniform int u_polygon_n; /// { "start": 3, "end": 100, "default": 4 }
+uniform float u_polygon_r; /// { "start": 0, "end": 1, "default": 0.49999 }
+uniform float u_polygon_thickness; /// { "start": 0, "end": 1, "default": 0.025 }
+uniform bool u_polygon_smooth_edges; /// { "default": true }
+uniform bool u_polygon_fill; /// { "default": false }
+uniform bool u_polygon_destructive; /// { "default": false }
+
+void polygon() {
+    vec2 coords = t_coords.xy;
+    vec2 c = coords / u_dimensions;
+    c = 2. * c - 1.;
+
+    float r = length(c);
+    float theta = atan(c.y, c.x);
+    if (theta < 0.)
+        theta += 2. * PI;
+
+    float angle = 2. * PI / float(u_polygon_n);
+    float lower = floor(theta / angle) * angle;
+    float higher = ceil(theta / angle) * angle;
+
+    vec2 lower_c = u_polygon_r * vec2(cos(lower), sin(lower));
+    vec2 higher_c = u_polygon_r * vec2(cos(higher), sin(higher));
+    // if (length(lower_c - c) < 0.1)
+    //     color_out.rgb = vec3(1.);
+    // if (length(higher_c - c) < 0.1)
+    //     color_out.rgb = vec3(1.);
+
+    // return;
+    // a + (b - a) * t = r' * (cos x, sin x)
+    // a.x + (b.x - a.x) * t = r' * cos x
+    // a.y + (b.y - a.y) * t = r' * sin x
+    //
+    // t = (r' * cos x - a.x) / (b.x - a.x)
+    // r' * sin x = (a.y + (r' * cos x - a.x) (b.y - a.y) / (b.x - a.x))
+    // r' * sin x - (r' * cos x) (b.y - a.y) / (b.x - a.x) = a.y - a.x * (b.y - a.y) / (b.x - a.x)
+    // r' * (sin x - (cos x - a.x) (b.y - a.y) / (b.x - a.x) = a.y - a.x * (b.y - a.y) / (b.x - a.x)
+    // where a = lower_c, b = higher_c, x = theta, r' = radius along pg edge
+
+    vec2 s = higher_c - lower_c;
+    float lhs = 1. - (cos(theta) * s.y / (sin(theta) * s.x));
+    float rhs = (lower_c.y * s.x - lower_c.x * s.y) / (sin(theta) * s.x);
+    // float lhs = (
+    //     sin(theta) - (cos(theta) - lower_c.x) * (
+    //         (higher_c.y - lower_c.y) / (higher_c.x - lower_c.x)
+    //     ));
+
+    // float rhs = (
+    //     lower_c.y - lower_c.x * (
+    //         (higher_c.y - lower_c.y) / (higher_c.x - lower_c.x)
+    //     ));
+    float pg_r = rhs / lhs;
+
+    // float base = length(higher_c - lower_c);
+    // float h = sqrt(u_polygon_r * u_polygon_r - base * base);
+    // float pg_r = 0.;
+    // float avg = (lower + higher) / 2.;
+    // if (theta < avg)
+    //     pg_r = mix(u_polygon_r, h, (theta - lower) / (avg - lower));
+    // else
+    //     pg_r = mix(h, u_polygon_r, (theta - avg) / (avg - lower));
+
+
+    if (abs(r - pg_r) < u_polygon_thickness || (u_polygon_fill && r < pg_r)) {
+        float factor = 1.;
+        if (u_polygon_smooth_edges && (!u_polygon_fill || r >= pg_r)) {
+            factor = 1. - abs(r - pg_r) / u_polygon_thickness;
+        }
+
+        if (u_polygon_destructive && factor > 0.)
+            color_out.rgb = factor * u_polygon_color;
+        else
+            color_out.rgb += factor * u_polygon_color;
+    }
+}
+
+
 /// modulefn: recolor
 /// moduletag: color
 
@@ -563,6 +658,8 @@ uniform float u_sf_m; /// { "start": 1, "end": 10, "default": 1 }
 uniform vec3 u_sf_n; /// { "start": [0, 0, 0], "end": [20, 20, 20], "default": [20,20,20], "names": ["n1", "n2", "n3"] }
 uniform float u_sf_thickness; /// { "start": 0, "end": 1, "default": 0.5 }
 uniform bool u_sf_smooth_edges; /// { "default": true }
+uniform bool u_sf_fill; /// { "default": false }
+uniform bool u_sf_destructive; /// { "default": false }
 
 void superformula() {
     vec2 coords = t_coords.xy;
@@ -584,13 +681,16 @@ void superformula() {
         pow(abs(sin(u_sf_m * theta / 4.)/b), u_sf_n.z),
         -1./u_sf_n.x);
 
-    if (abs(r - super_r) < u_sf_thickness) {
+    if (abs(r - super_r) < u_sf_thickness || (u_sf_fill && r < super_r)) {
         float factor = 1.;
-        if (u_sf_smooth_edges) {
+        if (u_sf_smooth_edges && (!u_sf_fill || r >= super_r)) {
             factor = 1. - abs(r - super_r) / u_sf_thickness;
         }
 
-        color_out.rgb += factor * u_sf_color;
+        if (u_sf_destructive && factor > 0.)
+            color_out.rgb = factor * u_sf_color;
+        else
+            color_out.rgb += factor * u_sf_color;
     }
 }
 
@@ -762,84 +862,90 @@ case 2:
     checkerfill();
     break;
 case 3:
-    composite();
+    chromakey();
     break;
 case 4:
-    condzoom();
+    composite();
     break;
 case 5:
-    copy();
+    condzoom();
     break;
 case 6:
-    enhance();
+    copy();
     break;
 case 7:
-    gamma_correct();
+    enhance();
     break;
 case 8:
-    greyscale();
+    gamma_correct();
     break;
 case 9:
-    halftone();
+    greyscale();
     break;
 case 10:
-    hue_shift();
+    halftone();
     break;
 case 11:
-    invert_color();
+    hue_shift();
     break;
 case 12:
-    multiply();
+    invert_color();
     break;
 case 13:
-    noise();
+    multiply();
     break;
 case 14:
-    offset();
+    noise();
     break;
 case 15:
-    oscillator();
+    offset();
     break;
 case 16:
-    picture();
+    oscillator();
     break;
 case 17:
-    pixelate();
+    picture();
     break;
 case 18:
-    recolor();
+    pixelate();
     break;
 case 19:
-    reduce_colors();
+    polygon();
     break;
 case 20:
-    reflector();
+    recolor();
     break;
 case 21:
-    ripple();
+    reduce_colors();
     break;
 case 22:
-    rotate();
+    reflector();
     break;
 case 23:
-    superformula();
+    ripple();
     break;
 case 24:
-    swirl();
+    rotate();
     break;
 case 25:
-    threshold();
+    superformula();
     break;
 case 26:
-    tile();
+    swirl();
     break;
 case 27:
-    wavy();
+    threshold();
     break;
 case 28:
-    webcam();
+    tile();
     break;
 case 29:
+    wavy();
+    break;
+case 30:
+    webcam();
+    break;
+case 31:
     zoom();
     break;
 

@@ -1,3 +1,6 @@
+
+const cryptopirate = (() => {
+    window.globalsuffix = "cryptopirate";
 // ---------- twgl-full.min.js ----------
 /*!
  * @license twgl.js 4.18.0 Copyright (c) 2015, Gregg Tavares All Rights Reserved.
@@ -627,87 +630,6 @@ void pixelate() {
 }
 
 
-/// modulefn: polygon
-/// moduletag: generator
-
-uniform vec3 u_polygon_color; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [1, 0, 0], "names": ["r", "g", "b"] }
-uniform int u_polygon_n; /// { "start": 3, "end": 100, "default": 4 }
-uniform float u_polygon_r; /// { "start": 0, "end": 1, "default": 0.49999 }
-uniform float u_polygon_thickness; /// { "start": 0, "end": 1, "default": 0.025 }
-uniform bool u_polygon_smooth_edges; /// { "default": true }
-uniform bool u_polygon_fill; /// { "default": false }
-uniform bool u_polygon_destructive; /// { "default": false }
-
-void polygon() {
-    vec2 coords = t_coords.xy;
-    vec2 c = coords / u_dimensions;
-    c = 2. * c - 1.;
-
-    float r = length(c);
-    float theta = atan(c.y, c.x);
-    if (theta < 0.)
-        theta += 2. * PI;
-
-    float angle = 2. * PI / float(u_polygon_n);
-    float lower = floor(theta / angle) * angle;
-    float higher = ceil(theta / angle) * angle;
-
-    vec2 lower_c = u_polygon_r * vec2(cos(lower), sin(lower));
-    vec2 higher_c = u_polygon_r * vec2(cos(higher), sin(higher));
-    // if (length(lower_c - c) < 0.1)
-    //     color_out.rgb = vec3(1.);
-    // if (length(higher_c - c) < 0.1)
-    //     color_out.rgb = vec3(1.);
-
-    // return;
-    // a + (b - a) * t = r' * (cos x, sin x)
-    // a.x + (b.x - a.x) * t = r' * cos x
-    // a.y + (b.y - a.y) * t = r' * sin x
-    //
-    // t = (r' * cos x - a.x) / (b.x - a.x)
-    // r' * sin x = (a.y + (r' * cos x - a.x) (b.y - a.y) / (b.x - a.x))
-    // r' * sin x - (r' * cos x) (b.y - a.y) / (b.x - a.x) = a.y - a.x * (b.y - a.y) / (b.x - a.x)
-    // r' * (sin x - (cos x - a.x) (b.y - a.y) / (b.x - a.x) = a.y - a.x * (b.y - a.y) / (b.x - a.x)
-    // where a = lower_c, b = higher_c, x = theta, r' = radius along pg edge
-
-    vec2 s = higher_c - lower_c;
-    float lhs = 1. - (cos(theta) * s.y / (sin(theta) * s.x));
-    float rhs = (lower_c.y * s.x - lower_c.x * s.y) / (sin(theta) * s.x);
-    // float lhs = (
-    //     sin(theta) - (cos(theta) - lower_c.x) * (
-    //         (higher_c.y - lower_c.y) / (higher_c.x - lower_c.x)
-    //     ));
-
-    // float rhs = (
-    //     lower_c.y - lower_c.x * (
-    //         (higher_c.y - lower_c.y) / (higher_c.x - lower_c.x)
-    //     ));
-    float pg_r = rhs / lhs;
-
-    // float base = length(higher_c - lower_c);
-    // float h = sqrt(u_polygon_r * u_polygon_r - base * base);
-    // float pg_r = 0.;
-    // float avg = (lower + higher) / 2.;
-    // if (theta < avg)
-    //     pg_r = mix(u_polygon_r, h, (theta - lower) / (avg - lower));
-    // else
-    //     pg_r = mix(h, u_polygon_r, (theta - avg) / (avg - lower));
-
-
-    if (abs(r - pg_r) < u_polygon_thickness || (u_polygon_fill && r < pg_r)) {
-        float factor = 1.;
-        if (u_polygon_smooth_edges && (!u_polygon_fill || r >= pg_r)) {
-            factor = 1. - abs(r - pg_r) / u_polygon_thickness;
-        }
-
-        if (u_polygon_destructive && factor > 0.)
-            color_out.rgb = factor * u_polygon_color;
-        else
-            color_out.rgb += factor * u_polygon_color;
-    }
-}
-
-
 /// modulefn: recolor
 /// moduletag: color
 
@@ -1098,42 +1020,39 @@ case 18:
     pixelate();
     break;
 case 19:
-    polygon();
-    break;
-case 20:
     recolor();
     break;
-case 21:
+case 20:
     reduce_colors();
     break;
-case 22:
+case 21:
     reflector();
     break;
-case 23:
+case 22:
     ripple();
     break;
-case 24:
+case 23:
     rotate();
     break;
-case 25:
+case 24:
     superformula();
     break;
-case 26:
+case 25:
     swirl();
     break;
-case 27:
+case 26:
     threshold();
     break;
-case 28:
+case 27:
     tile();
     break;
-case 29:
+case 28:
     wavy();
     break;
-case 30:
+case 29:
     webcam();
     break;
-case 31:
+case 30:
     zoom();
     break;
 
@@ -2828,41 +2747,8 @@ class PixelateElement extends SynthElementBase {
     }
 }
 defineEl('synth-pixelate', PixelateElement);
-        class Polygon extends Function {
-            id = 19
-            params = {}
-
-            constructor(polygon_color, polygon_n, polygon_r, polygon_thickness, polygon_smooth_edges, polygon_fill, polygon_destructive, feedback) {
-                super(feedback || 0);
-                this.params.polygon_color = polygon_color;
-this.params.polygon_n = polygon_n;
-this.params.polygon_r = polygon_r;
-this.params.polygon_thickness = polygon_thickness;
-this.params.polygon_smooth_edges = polygon_smooth_edges;
-this.params.polygon_fill = polygon_fill;
-this.params.polygon_destructive = polygon_destructive;
-
-            }
-        }
-
-        class PolygonElement extends SynthElementBase {
-            get_title() {
-                return "Polygon";
-            }
-
-            get_fn() {
-                return Polygon;
-            }
-
-            get_args() {
-                return {
-                    polygon_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0]),polygon_n: new IntEntry([3,100], 4),polygon_r: new FloatBar([0,1], 0.49999),polygon_thickness: new FloatBar([0,1], 0.025),polygon_smooth_edges: new BoolEntry(true),polygon_fill: new BoolEntry(false),polygon_destructive: new BoolEntry(false)
-                }
-            }
-        }
-        defineEl('synth-polygon', PolygonElement);
         class Recolor extends Function {
-            id = 20
+            id = 19
             params = {}
 
             constructor(recolor_new_r, recolor_new_g, recolor_new_b, feedback) {
@@ -2891,7 +2777,7 @@ this.params.recolor_new_b = recolor_new_b;
         }
         defineEl('synth-recolor', RecolorElement);
         class ReduceColors extends Function {
-            id = 21
+            id = 20
             params = {}
 
             constructor(reduce_colors_data, reduce_colors_count, feedback) {
@@ -2919,7 +2805,7 @@ this.params.reduce_colors_count = reduce_colors_count;
         }
         defineEl('synth-reducecolors', ReduceColorsElement);
         class Reflector extends Function {
-            id = 22
+            id = 21
             params = {}
 
             constructor(reflect_theta, reflect_y, reflect_x, feedback) {
@@ -2948,7 +2834,7 @@ this.params.reflect_x = reflect_x;
         }
         defineEl('synth-reflector', ReflectorElement);
         class Ripple extends Function {
-            id = 23
+            id = 22
             params = {}
 
             constructor(ripple_freq, ripple_c, ripple_strength, ripple_center, feedback) {
@@ -2978,7 +2864,7 @@ this.params.ripple_center = ripple_center;
         }
         defineEl('synth-ripple', RippleElement);
 class Rotate extends Function {
-    id = 24
+    id = 23
     params = {}
 
     constructor(rotation, feedback) {
@@ -3005,7 +2891,7 @@ class RotateElement extends SynthElementBase {
 }
 defineEl('synth-rotate', RotateElement);
         class Superformula extends Function {
-            id = 25
+            id = 24
             params = {}
 
             constructor(sf_color, sf_m, sf_n, sf_thickness, sf_smooth_edges, sf_fill, sf_destructive, feedback) {
@@ -3038,7 +2924,7 @@ this.params.sf_destructive = sf_destructive;
         }
         defineEl('synth-superformula', SuperformulaElement);
 class Swirl extends Function {
-    id = 26
+    id = 25
     params = {}
 
     constructor(factor, feedback) {
@@ -3065,7 +2951,7 @@ class SwirlElement extends SynthElementBase {
 }
 defineEl('synth-swirl', SwirlElement);
         class Threshold extends Function {
-            id = 27
+            id = 26
             params = {}
 
             constructor(threshold_high_r, threshold_high_g, threshold_high_b, thresholds, feedback) {
@@ -3095,7 +2981,7 @@ this.params.thresholds = thresholds;
         }
         defineEl('synth-threshold', ThresholdElement);
         class Tile extends Function {
-            id = 28
+            id = 27
             params = {}
 
             constructor(tile_x, tile_y, feedback) {
@@ -3123,7 +3009,7 @@ this.params.tile_y = tile_y;
         }
         defineEl('synth-tile', TileElement);
         class Wavy extends Function {
-            id = 29
+            id = 28
             params = {}
 
             constructor(wavy_freq_x, wavy_c_x, wavy_strength_x, wavy_freq_y, wavy_c_y, wavy_strength_y, feedback) {
@@ -3155,7 +3041,7 @@ this.params.wavy_strength_y = wavy_strength_y;
         }
         defineEl('synth-wavy', WavyElement);
         class Webcam extends Function {
-            id = 30
+            id = 29
             params = {}
 
             constructor(webcam_texture, webcam_dimensions, webcam_invert_x, webcam_invert_y, feedback) {
@@ -3185,7 +3071,7 @@ this.params.webcam_invert_y = webcam_invert_y;
         }
         defineEl('synth-webcam', WebcamElement);
         class Zoom extends Function {
-            id = 31
+            id = 30
             params = {}
 
             constructor(zoom, zoom_center, feedback) {
@@ -3212,7 +3098,7 @@ this.params.zoom_center = zoom_center;
             }
         }
         defineEl('synth-zoom', ZoomElement);
-const MODULE_IDS = {"blur": {class: "BlurElement", tag: "space"},"checkerfill": {class: "CheckerfillElement", tag: "space"},"chromakey": {class: "ChromakeyElement", tag: "channels"},"composite": {class: "CompositeElement", tag: "channels"},"condzoom": {class: "CondzoomElement", tag: "channels"},"copy": {class: "CopyElement", tag: "channels"},"enhance": {class: "EnhanceElement", tag: "color"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"greyscale": {class: "GreyscaleElement", tag: "color"},"halftone": {class: "HalftoneElement", tag: "space"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"multiply": {class: "MultiplyElement", tag: "channels"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"polygon": {class: "PolygonElement", tag: "generator"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"ripple": {class: "RippleElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"wavy": {class: "WavyElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
+const MODULE_IDS = {"blur": {class: "BlurElement", tag: "space"},"checkerfill": {class: "CheckerfillElement", tag: "space"},"chromakey": {class: "ChromakeyElement", tag: "channels"},"composite": {class: "CompositeElement", tag: "channels"},"condzoom": {class: "CondzoomElement", tag: "channels"},"copy": {class: "CopyElement", tag: "channels"},"enhance": {class: "EnhanceElement", tag: "color"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"greyscale": {class: "GreyscaleElement", tag: "color"},"halftone": {class: "HalftoneElement", tag: "space"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"multiply": {class: "MultiplyElement", tag: "channels"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"ripple": {class: "RippleElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"wavy": {class: "WavyElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
 // ---------- END build/module_lib.js ------
 
 // ---------- meta_module.js ----------
@@ -3655,10 +3541,7 @@ function loaddata(savedatas, ui_container, synth, into_current) {
             } else {
                 const moduleElem = eval(elem.title + 'Element');
                 const new_elem = new moduleElem(synth);
-                let container = ui_container.querySelector(`#ui-${curr_chan}`);
-                if (!container && __suffix) // standalone mode
-                    container = ui_container;
-                container.appendChild(new_elem);
+                ui_container.querySelector(`#ui-${curr_chan}`).appendChild(new_elem);
                 new_elem.load(elem);
                 console.log('ADD', new_elem.get_title());
             }
@@ -3861,6 +3744,7 @@ function setup_save_load(ui_container, synth, settingsui) {
                 const stegodata = ctxdata.data;
                 const result = decode_stego(stegodata, LZString);
 
+                console.log(result);
                 do_load(name, JSON.parse(result));
             }
         } else {
@@ -4346,7 +4230,7 @@ function loadStaticSynth(canvas, data, cb) {
     ui0.id = "ui-0";
     ui_container.appendChild(ui0);
     // note that meta-modules don't need to be loaded
-    loaddata(data.stages ? [data.stages] : data.channels, ui_container, synth);
+    loaddata([data.stages] || data.channels, ui_container, synth);
     if (cb) {
         cb(ui_container);
     }
@@ -4355,3 +4239,11 @@ function loadStaticSynth(canvas, data, cb) {
 }
 // ---------- END synth.js ------
 
+const data = {"stages":[{"title":"Noise","enabled":false,"args":{"noise_r":{"value":0,"generate":false},"noise_g":{"value":0,"generate":false},"noise_b":{"value":0,"generate":false},"feedback":{"value":0,"generate":false},"constrain":0}},{"title":"Zoom","enabled":true,"args":{"zoom":{"value":0.9,"generate":false},"zoom_center":{"x":{"value":0.5,"generate":false},"y":{"value":0.5,"generate":false}},"feedback":{"value":1,"generate":false},"constrain":0}},{"title":"Wavy","enabled":true,"args":{"wavy_freq_x":{"value":32,"generate":false},"wavy_c_x":{"value":4.520088837935518,"generate":true,"func":"step","params":{"freq":1,"c":0,"y":0,"a":1}},"wavy_strength_x":{"value":15.8,"generate":false},"wavy_freq_y":{"value":32,"generate":false},"wavy_c_y":{"value":0,"generate":false},"wavy_strength_y":{"value":16,"generate":false},"feedback":{"value":1,"generate":false},"constrain":0}},{"title":"Offset","enabled":true,"args":{"offsets_x":{"r":{"value":0.02,"generate":false},"g":{"value":-0.02,"generate":false},"b":{"value":0,"generate":false}},"offsets_y":{"r":{"value":0,"generate":false},"g":{"value":0,"generate":false},"b":{"value":0.02,"generate":false}},"feedback":{"value":1,"generate":false},"constrain":0}},{"title":"Transform","enabled":true,"args":{"scale":{"value":0.5,"generate":false},"center":{"x":{"value":0.5,"generate":false},"y":{"value":0.5,"generate":false}},"rotation":{"value":0,"generate":false},"feedback":{"value":1,"generate":false},"constrain":0}},{"title":"InvertColor","enabled":true,"args":{"feedback":{"value":1,"generate":false},"constrain":true}},{"title":"Transform","enabled":true,"args":{"scale":{"value":1,"generate":false},"center":{"x":{"value":0.5,"generate":false},"y":{"value":0.5,"generate":false}},"rotation":{"value":0,"generate":false},"feedback":{"value":1,"generate":false},"constrain":0}},{"title":"Tile","enabled":true,"args":{"tile_x":{"value":2,"generate":false},"tile_y":{"value":2,"generate":false},"feedback":{"value":1,"generate":false},"constrain":0}},{"title":"Transform","enabled":true,"args":{"scale":{"value":0.25,"generate":false},"center":{"x":{"value":0.5,"generate":false},"y":{"value":0.5,"generate":false}},"rotation":{"value":0,"generate":false},"feedback":{"value":1,"generate":false},"constrain":0}},{"title":"InvertColor","enabled":true,"args":{"feedback":{"value":1,"generate":false},"constrain":true}},{"title":"Transform","enabled":true,"args":{"scale":{"value":1,"generate":false},"center":{"x":{"value":0.5,"generate":false},"y":{"value":0.5,"generate":false}},"rotation":{"value":0,"generate":false},"feedback":{"value":1,"generate":false},"constrain":0}},{"title":"Blur","enabled":true,"args":{"blur_stride_x":{"value":2,"generate":false},"blur_stride_y":{"value":2,"generate":false},"feedback":{"value":1.9375,"generate":false},"constrain":0}}],"modules":{},"settings":{"name":"CryptoPirate","clock":"1"}};
+
+    window.globalsuffix = "";
+    return async (canvas, cb) => {
+        await loadTwgl();
+        return loadStaticSynth(canvas, data, cb);
+    };
+})();
