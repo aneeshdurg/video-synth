@@ -170,27 +170,11 @@ void copy() {
 /// modulefn: checkerfill
 /// moduletag: space
 
-uniform float u_checkerfill_strength; /// { "start": -1, "end": 10, "default": 2 }
 uniform int u_checkerfill_size; /// { "start": 1, "end": 100, "default": 5 }
 
 void checkerfill() {
     vec2 coords = t_coords.xy / u_dimensions;
-    vec2 c = 2. * coords - 1.;
-
-    float r = length(c);
-    float theta = atan(c.y, c.x);
-
-    vec3 lumc = vec3(0.2126, 0.7152, 0.0722);
-    float lum = dot(color_out.rgb, lumc);
-    float z = u_checkerfill_strength * lum;
-
-    if (z > 0.)
-        c /= z;
-
-    c = (c + 1.) / 2.;
-    c *= u_tex_dimensions;
-
-    ivec2 ic = ivec2(c);
+    ivec2 ic = ivec2(coords);
 
     int m = 0;
     if ((ic.x / u_checkerfill_size) % 2 == 0)
@@ -282,6 +266,14 @@ void hue_shift() {
 
 void invert_color() {
     color_out.rgb = 1. - color_out.rgb;
+}
+
+
+/// modulefn: invert_phase
+/// moduletag: color
+
+void invert_phase() {
+    color_out.rgb = -1. * color_out.rgb;
 }
 
 
@@ -517,6 +509,22 @@ void polygon() {
         else
             color_out.rgb += factor * u_polygon_color;
     }
+}
+
+
+/// modulefn: radial
+/// moduletag: color
+
+uniform float u_radial_strength; /// { "start": 0, "end": 10, "default": -1 }
+uniform vec2 u_radial_center;  /// { "start": [0, 0], "end": [1, 1], "default": [0.5, 0.5], "names": ["x", "y"] }
+
+void radial() {
+    vec2 coords = t_coords.xy / u_dimensions;
+
+    float r = length(coords - u_radial_center);
+    float f = 1. - pow(r, u_radial_strength);
+
+    color_out.rgb *= f;
 }
 
 
@@ -756,6 +764,19 @@ void tile() {
 }
 
 
+/// modulefn: waveify
+/// moduletag: color
+
+uniform vec3 u_waveify_a; /// {"start": [0, 0, 0], "end": [10, 10, 10], "default": [1, 1, 1], "names": ["r", "g", "b"]}
+uniform vec3 u_waveify_f; /// {"start": [0, 0, 0], "end": [1000, 1000, 1000], "default": [100, 100, 100], "names": ["r", "g", "b"]}
+uniform vec3 u_waveify_c; /// {"start": [0, 0, 0], "end": ["2 * math.pi", "2 * math.pi", "2 * math.pi"], "default": [0, 0, 0], "names": ["r", "g", "b"]}
+
+void waveify() {
+    color_out.xyz *=
+        u_waveify_a * sin(color_out.xyz * u_waveify_f + u_waveify_c);
+}
+
+
 /// modulefn: wavy
 /// moduletag: space
 
@@ -892,60 +913,69 @@ case 12:
     invert_color();
     break;
 case 13:
-    multiply();
+    invert_phase();
     break;
 case 14:
-    noise();
+    multiply();
     break;
 case 15:
-    offset();
+    noise();
     break;
 case 16:
-    oscillator();
+    offset();
     break;
 case 17:
-    picture();
+    oscillator();
     break;
 case 18:
-    pixelate();
+    picture();
     break;
 case 19:
-    polygon();
+    pixelate();
     break;
 case 20:
-    recolor();
+    polygon();
     break;
 case 21:
-    reduce_colors();
+    radial();
     break;
 case 22:
-    reflector();
+    recolor();
     break;
 case 23:
-    ripple();
+    reduce_colors();
     break;
 case 24:
-    rotate();
+    reflector();
     break;
 case 25:
-    superformula();
+    ripple();
     break;
 case 26:
-    swirl();
+    rotate();
     break;
 case 27:
-    threshold();
+    superformula();
     break;
 case 28:
-    tile();
+    swirl();
     break;
 case 29:
-    wavy();
+    threshold();
     break;
 case 30:
-    webcam();
+    tile();
     break;
 case 31:
+    waveify();
+    break;
+case 32:
+    wavy();
+    break;
+case 33:
+    webcam();
+    break;
+case 34:
     zoom();
     break;
 
