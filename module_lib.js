@@ -1,4 +1,4 @@
-        class Blur extends Function {
+        class Blur extends SynthFunction {
             id = 1
             params = {}
 
@@ -26,7 +26,7 @@ this.params.blur_stride_y = blur_stride_y;
             }
         }
         defineEl('synth-blur', BlurElement);
-class Checkerfill extends Function {
+class Checkerfill extends SynthFunction {
     id = 2
     params = {}
 
@@ -53,7 +53,7 @@ class CheckerfillElement extends SynthElementBase {
     }
 }
 defineEl('synth-checkerfill', CheckerfillElement);
-        class Chromakey extends Function {
+        class Chromakey extends SynthFunction {
             id = 3
             params = {}
 
@@ -82,7 +82,7 @@ this.params.chromakey_map = chromakey_map;
             }
         }
         defineEl('synth-chromakey', ChromakeyElement);
-        class Composite extends Function {
+        class Composite extends SynthFunction {
             id = 4
             params = {}
 
@@ -110,7 +110,7 @@ this.params.composite_map_2 = composite_map_2;
             }
         }
         defineEl('synth-composite', CompositeElement);
-        class Condzoom extends Function {
+        class Condzoom extends SynthFunction {
             id = 5
             params = {}
 
@@ -138,7 +138,7 @@ this.params.condzoom_map = condzoom_map;
             }
         }
         defineEl('synth-condzoom', CondzoomElement);
-class Copy extends Function {
+class Copy extends SynthFunction {
     id = 6
     params = {}
 
@@ -165,7 +165,7 @@ class CopyElement extends SynthElementBase {
     }
 }
 defineEl('synth-copy', CopyElement);
-class Enhance extends Function {
+class Enhance extends SynthFunction {
     id = 7
     params = {}
 
@@ -192,7 +192,7 @@ class EnhanceElement extends SynthElementBase {
     }
 }
 defineEl('synth-enhance', EnhanceElement);
-class GammaCorrect extends Function {
+class GammaCorrect extends SynthFunction {
     id = 8
     params = {}
 
@@ -219,7 +219,7 @@ class GammaCorrectElement extends SynthElementBase {
     }
 }
 defineEl('synth-gammacorrect', GammaCorrectElement);
-class Greyscale extends Function {
+class Greyscale extends SynthFunction {
     id = 9
     params = {}
 
@@ -246,7 +246,7 @@ class GreyscaleElement extends SynthElementBase {
     }
 }
 defineEl('synth-greyscale', GreyscaleElement);
-        class Halftone extends Function {
+        class Halftone extends SynthFunction {
             id = 10
             params = {}
 
@@ -275,7 +275,7 @@ this.params.halftone_strength = halftone_strength;
             }
         }
         defineEl('synth-halftone', HalftoneElement);
-        class HueShift extends Function {
+        class HueShift extends SynthFunction {
             id = 11
             params = {}
 
@@ -303,7 +303,7 @@ this.params.saturate_shift = saturate_shift;
             }
         }
         defineEl('synth-hueshift', HueShiftElement);
-class InvertColor extends Function {
+class InvertColor extends SynthFunction {
     id = 12
     params = {}
 
@@ -329,7 +329,7 @@ class InvertColorElement extends SynthElementBase {
     }
 }
 defineEl('synth-invertcolor', InvertColorElement);
-class InvertPhase extends Function {
+class InvertPhase extends SynthFunction {
     id = 13
     params = {}
 
@@ -355,7 +355,7 @@ class InvertPhaseElement extends SynthElementBase {
     }
 }
 defineEl('synth-invertphase', InvertPhaseElement);
-class Multiply extends Function {
+class Multiply extends SynthFunction {
     id = 14
     params = {}
 
@@ -382,7 +382,7 @@ class MultiplyElement extends SynthElementBase {
     }
 }
 defineEl('synth-multiply', MultiplyElement);
-        class Noise extends Function {
+        class Noise extends SynthFunction {
             id = 15
             params = {}
 
@@ -411,7 +411,7 @@ this.params.noise_b = noise_b;
             }
         }
         defineEl('synth-noise', NoiseElement);
-        class Offset extends Function {
+        class Offset extends SynthFunction {
             id = 16
             params = {}
 
@@ -439,7 +439,7 @@ this.params.offsets_y = offsets_y;
             }
         }
         defineEl('synth-offset', OffsetElement);
-        class Oscillator extends Function {
+        class Oscillator extends SynthFunction {
             id = 17
             params = {}
 
@@ -468,7 +468,7 @@ this.params.osc_color = osc_color;
             }
         }
         defineEl('synth-oscillator', OscillatorElement);
-        class Picture extends Function {
+        class Picture extends SynthFunction {
             id = 18
             params = {}
 
@@ -496,7 +496,7 @@ this.params.picture_dimensions = picture_dimensions;
             }
         }
         defineEl('synth-picture', PictureElement);
-class Pixelate extends Function {
+class Pixelate extends SynthFunction {
     id = 19
     params = {}
 
@@ -523,7 +523,7 @@ class PixelateElement extends SynthElementBase {
     }
 }
 defineEl('synth-pixelate', PixelateElement);
-        class Polygon extends Function {
+        class Polygon extends SynthFunction {
             id = 20
             params = {}
 
@@ -556,7 +556,7 @@ this.params.polygon_destructive = polygon_destructive;
             }
         }
         defineEl('synth-polygon', PolygonElement);
-        class Radial extends Function {
+        class Radial extends SynthFunction {
             id = 21
             params = {}
 
@@ -584,7 +584,7 @@ this.params.radial_center = radial_center;
             }
         }
         defineEl('synth-radial', RadialElement);
-        class Recolor extends Function {
+        class Recolor extends SynthFunction {
             id = 22
             params = {}
 
@@ -613,7 +613,7 @@ this.params.recolor_new_b = recolor_new_b;
             }
         }
         defineEl('synth-recolor', RecolorElement);
-        class ReduceColors extends Function {
+        class ReduceColors extends SynthFunction {
             id = 23
             params = {}
 
@@ -641,7 +641,7 @@ this.params.reduce_colors_count = reduce_colors_count;
             }
         }
         defineEl('synth-reducecolors', ReduceColorsElement);
-        class Reflector extends Function {
+        class Reflector extends SynthFunction {
             id = 24
             params = {}
 
@@ -670,7 +670,7 @@ this.params.reflect_x = reflect_x;
             }
         }
         defineEl('synth-reflector', ReflectorElement);
-        class Ripple extends Function {
+        class Ripple extends SynthFunction {
             id = 25
             params = {}
 
@@ -700,7 +700,7 @@ this.params.ripple_center = ripple_center;
             }
         }
         defineEl('synth-ripple', RippleElement);
-class Rotate extends Function {
+class Rotate extends SynthFunction {
     id = 26
     params = {}
 
@@ -727,7 +727,7 @@ class RotateElement extends SynthElementBase {
     }
 }
 defineEl('synth-rotate', RotateElement);
-        class Superformula extends Function {
+        class Superformula extends SynthFunction {
             id = 27
             params = {}
 
@@ -760,7 +760,7 @@ this.params.sf_destructive = sf_destructive;
             }
         }
         defineEl('synth-superformula', SuperformulaElement);
-class Swirl extends Function {
+class Swirl extends SynthFunction {
     id = 28
     params = {}
 
@@ -787,7 +787,7 @@ class SwirlElement extends SynthElementBase {
     }
 }
 defineEl('synth-swirl', SwirlElement);
-        class Threshold extends Function {
+        class Threshold extends SynthFunction {
             id = 29
             params = {}
 
@@ -817,7 +817,7 @@ this.params.thresholds = thresholds;
             }
         }
         defineEl('synth-threshold', ThresholdElement);
-        class Tile extends Function {
+        class Tile extends SynthFunction {
             id = 30
             params = {}
 
@@ -845,7 +845,7 @@ this.params.tile_y = tile_y;
             }
         }
         defineEl('synth-tile', TileElement);
-        class Waveify extends Function {
+        class Waveify extends SynthFunction {
             id = 31
             params = {}
 
@@ -874,7 +874,7 @@ this.params.waveify_c = waveify_c;
             }
         }
         defineEl('synth-waveify', WaveifyElement);
-        class Wavy extends Function {
+        class Wavy extends SynthFunction {
             id = 32
             params = {}
 
@@ -906,7 +906,7 @@ this.params.wavy_strength_y = wavy_strength_y;
             }
         }
         defineEl('synth-wavy', WavyElement);
-        class Webcam extends Function {
+        class Webcam extends SynthFunction {
             id = 33
             params = {}
 
@@ -936,7 +936,7 @@ this.params.webcam_invert_y = webcam_invert_y;
             }
         }
         defineEl('synth-webcam', WebcamElement);
-        class Zoom extends Function {
+        class Zoom extends SynthFunction {
             id = 34
             params = {}
 
