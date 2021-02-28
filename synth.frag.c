@@ -196,6 +196,45 @@ void enhance() {
 }
 
 
+/// modulefn: fourierdraw
+/// moduletag: generator
+
+// sin(dot(f, x) + c) * color
+uniform vec3 u_fd_r; /// { "start": [-10, -10, -10], "end": [10, 10, 10], "default": [0, 0, 0], "names": ["1", "2", "3"] }
+uniform vec3 u_fd_theta; /// { "start": [0, 0, 0], "end": ["2 * math.pi", "2 * math.pi", "2 * math.pi"], "default": [0, 0, 0], "names": ["1", "2", "3"] }
+uniform float u_fd_draw_r; /// { "start": 0, "end": 2, "default": 0.25 }
+uniform vec3 u_fd_color; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [1, 0, 0], "names": ["r", "g", "b"] }
+uniform float u_fd_thickness; /// { "start": 0, "end": 1, "default": 0.025 }
+uniform bool u_fd_smooth_edges; /// { "default": true }
+uniform bool u_fd_fill; /// { "default": false }
+uniform bool u_fd_destructive; /// { "default": false }
+
+void fourierdraw() {
+    vec2 coords = t_coords.xy;
+    vec2 c = coords / u_dimensions;
+    c = 2. * c - 1.;
+
+    float x = dot(u_fd_r * cos(u_fd_theta), vec3(1.));
+    float y = dot(u_fd_r * sin(u_fd_theta), vec3(1.));
+
+    vec2 pos = vec2(x, y);
+    float r = length(pos - c);
+    if ((u_fd_fill &&  r < u_fd_draw_r) ||
+        (!u_fd_fill && abs(r - u_fd_draw_r) < u_fd_thickness )) {
+        float factor = 1.;
+        if (u_fd_smooth_edges && (!u_fd_fill || r >= u_fd_draw_r)) {
+            factor = 1. - abs(r - u_fd_draw_r) / u_fd_thickness;
+        }
+
+        if (u_fd_destructive && factor > 0.)
+            color_out.rgb = factor * u_fd_color;
+        else
+            color_out.rgb += factor * u_fd_color;
+
+    }
+}
+
+
 /// modulefn: gamma_correct
 /// moduletag: color
 
@@ -897,84 +936,87 @@ case 7:
     enhance();
     break;
 case 8:
-    gamma_correct();
+    fourierdraw();
     break;
 case 9:
-    greyscale();
+    gamma_correct();
     break;
 case 10:
-    halftone();
+    greyscale();
     break;
 case 11:
-    hue_shift();
+    halftone();
     break;
 case 12:
-    invert_color();
+    hue_shift();
     break;
 case 13:
-    invert_phase();
+    invert_color();
     break;
 case 14:
-    multiply();
+    invert_phase();
     break;
 case 15:
-    noise();
+    multiply();
     break;
 case 16:
-    offset();
+    noise();
     break;
 case 17:
-    oscillator();
+    offset();
     break;
 case 18:
-    picture();
+    oscillator();
     break;
 case 19:
-    pixelate();
+    picture();
     break;
 case 20:
-    polygon();
+    pixelate();
     break;
 case 21:
-    radial();
+    polygon();
     break;
 case 22:
-    recolor();
+    radial();
     break;
 case 23:
-    reduce_colors();
+    recolor();
     break;
 case 24:
-    reflector();
+    reduce_colors();
     break;
 case 25:
-    ripple();
+    reflector();
     break;
 case 26:
-    rotate();
+    ripple();
     break;
 case 27:
-    superformula();
+    rotate();
     break;
 case 28:
-    swirl();
+    superformula();
     break;
 case 29:
-    threshold();
+    swirl();
     break;
 case 30:
-    tile();
+    threshold();
     break;
 case 31:
-    waveify();
+    tile();
     break;
 case 32:
-    wavy();
+    waveify();
     break;
 case 33:
-    webcam();
+    wavy();
     break;
 case 34:
+    webcam();
+    break;
+case 35:
     zoom();
     break;
 
