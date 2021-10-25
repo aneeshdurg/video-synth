@@ -78,7 +78,106 @@ vec3 rgb_to_hsv(vec3 rgb) {
     return vec3(h, s, v);
 }
 
+float isGEq(float a, float b) {
+    return sign(sign(a - b) + 1.0);
+}
+
+vec2 get_hex_origin(vec2 coords, float hex_size) {
+    float n = max(hex_size, 0.01);
+    float halfn = n / 2.0;
+
+    float sqrt3 = 1.732;
+
+    float W = sqrt3 * n;
+    float halfW = W/2.0;
+
+    float H = 3.0 * halfn;
+
+    float xidx = floor(coords.x / W);
+    float yidx = floor(coords.y / H);
+
+    // Get top left corner of bounding square
+    vec2 o = vec2(W * xidx, H * yidx);
+
+    // transform coordinates to make square begin at origin
+    vec2 t = coords - o;
+
+    // Hexagon targets in transformed space
+    vec2 vertA = vec2(0.0, 0.0);
+    vec2 vertB = vec2(W, 0.0);
+    vec2 vertC = vec2(halfW, H);
+
+    vec2 vertInvalid = vec2(-1.0, 0.0);
+
+    // pattern alternates every other row
+    if (mod(yidx, 2.0) != 0.0) {
+        t.y = H - t.y;
+    }
+
+    float xLeHalfW = isGEq(halfW, t.x);
+    float yLehalfN = isGEq(halfn, t.y);
+    float yGeN = isGEq(t.y, n);
+
+    float yt = t.y - halfn;
+    float xt = (t.x - halfW) / sqrt3;
+    float xnt = (halfW - t.x) / sqrt3;
+
+    float xntGeYt = isGEq(xnt, yt);
+    float xtGeYt = isGEq(xt, yt);
+
+    vec2 hex =
+        yLehalfN * (
+             xLeHalfW * vertA +
+             (1.0 - xLeHalfW) * vertB) +
+        yGeN * vertC +
+        (1.0 - yLehalfN) * (1.0 - yGeN) * (
+             xLeHalfW * (
+                xntGeYt * vertA +
+                (1.0 - xntGeYt) * vertC) +
+             (1.0 - xLeHalfW) * (
+                xtGeYt * vertB +
+                (1.0 - xtGeYt) * vertC));
+
+    if (mod(yidx, 2.0) != 0.0) {
+        hex.y = H - hex.y;
+    }
+
+   hex += o;
+
+   return hex;
+}
+
+
+
 vec2 t_coords;
+
+/// modulefn: bitfield
+/// moduletag: generator
+
+uniform vec3 u_bf_fg_color; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [1, 1, 1], "names": ["r", "g", "b"] }
+uniform vec3 u_bf_bg_color; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [0, 0, 0], "names": ["r", "g", "b"] }
+uniform vec2 u_bf_offset; /// { "start": [-1, -1], "end": [1, 1], "default": [0, 0], "names": ["x", "y"] }
+uniform float u_bf_operator_a; /// { "start": 0, "end": 100, "default": 9 }
+uniform float u_bf_operator_b; /// { "start": 0, "end": 100, "default": 4 }
+uniform bool u_bf_destructive; /// { "default": false }
+
+void bitfield() {
+    // vec2 coords = t_coords.xy;
+    // vec2 c = coords / u_dimensions;
+    // c = 2. * c - 1.;
+    // c *= vec2(u_bf_x_scale, u_bf_y_scale);
+    ivec2 ic = ivec2(t_coords.xy + u_bf_offset * u_dimensions);
+    vec3 color = u_bf_bg_color;
+    float factor = mod(float(ic.x ^ ic.y), u_bf_operator_a) / u_bf_operator_b;
+    color = factor * u_bf_fg_color + (1. - factor) * u_bf_bg_color;
+
+    if (u_bf_destructive) {
+        color_out.rgb = color;
+    } else {
+        color_out.rgb += color;
+    }
+}
+
 
 /// modulefn: blur
 /// moduletag: space
@@ -285,6 +384,33 @@ void halftone() {
     color *= intensity;
 
     color_out = vec4(u_feedback * color, 1.);
+}
+
+
+
+/// modulefn: hexswirl
+/// moduletag: space
+
+uniform float u_hexswirl_factor; /// { "start": 0, "end": "2 * math.pi", "default": 0 }
+uniform float u_hexswirl_size; /// { "start": 0, "end": "100", "default": 5 }
+
+void hexswirl() {
+    vec2 hex_coords = get_hex_origin(t_coords.xy, u_hexswirl_size);
+    float hex_r = (u_hexswirl_size / 2.)/ cos(5. * PI / 12.);
+    vec2 c = (t_coords.xy - hex_coords) / hex_r;
+    c = 2. * c - 1.;
+
+    float r = length(c);
+    float theta = atan(c.y, c.x);
+    theta += r * u_hexswirl_factor;
+    c = r * vec2(cos(theta), sin(theta));
+
+    c  = (c + 1.) / 2.;
+
+    c *= hex_r;
+    c += hex_coords;
+
+    color_out = vec4(u_feedback * texelFetch(u_texture, ivec2(c), 0).xyz, 1.);
 }
 
 
@@ -803,6 +929,70 @@ void tile() {
 }
 
 
+/// modulefn: voronoi
+/// moduletag: color
+
+uniform sampler2D u_voronoi_data; /// custom
+uniform int u_voronoi_count; /// custom
+
+void voronoi() {
+    vec2 pt = t_coords / u_dimensions;
+    vec2 cell_pt = vec2(0.);
+    float dist = -1.;
+    for (int i = 0; i < u_voronoi_count; i++) {
+        vec4 candidate_ = texelFetch(u_voronoi_data, ivec2(i / 2, 0), 0);
+        vec2 candidate = (i % 2 == 0) ? candidate_.rg : candidate_.ba;
+        float curr_dist = length(candidate - pt);
+        if (dist < 0. || curr_dist < dist) {
+            dist = curr_dist;
+            cell_pt = candidate;
+        }
+    }
+
+    color_out.xyz = texelFetch(u_texture, ivec2(cell_pt * u_dimensions), 0).rgb;
+}
+
+
+/// modulefn: voronoiswirl
+/// moduletag: space
+
+uniform sampler2D u_voronoiswirl_data; /// custom
+uniform int u_voronoiswirl_count; /// custom
+uniform float u_voronoiswirl_factor; /// { "start": 0, "end": "2 * math.pi", "default": 0 }
+
+void voronoiswirl() {
+    vec2 pt = t_coords / u_dimensions;
+    vec2 cell_pt = vec2(0.);
+    float dist = -1.;
+    for (int i = 0; i < u_voronoiswirl_count; i++) {
+        vec4 candidate_ = texelFetch(u_voronoiswirl_data, ivec2(i / 2, 0), 0);
+        vec2 candidate = (i % 2 == 0) ? candidate_.rg : candidate_.ba;
+        float curr_dist = length(candidate - pt);
+        if (dist < 0. || curr_dist < dist) {
+            dist = curr_dist;
+            cell_pt = candidate;
+        }
+    }
+
+    pt = 2. * pt - 1.;
+    vec2 c = pt - cell_pt;
+    c = (c + 1.) / 2.;
+    // c = 2. * c - 1.;
+
+    // float r = length(c);
+    // float theta = atan(c.y, c.x);
+    // theta += r * u_voronoiswirl_factor;
+    // c = r * vec2(cos(theta), sin(theta));
+
+    // c  = (c + 1.) / 2.;
+
+    // c += cell_pt;
+
+    color_out = vec4(u_feedback * texelFetch(u_texture, ivec2(c *u_dimensions), 0).xyz, 1.);
+
+}
+
+
 /// modulefn: waveify
 /// moduletag: color
 
@@ -916,108 +1106,120 @@ void main() {
     case FN_RENDER:
         break;
 case 1:
-    blur();
+    bitfield();
     break;
 case 2:
-    checkerfill();
+    blur();
     break;
 case 3:
-    chromakey();
+    checkerfill();
     break;
 case 4:
-    composite();
+    chromakey();
     break;
 case 5:
-    condzoom();
+    composite();
     break;
 case 6:
-    copy();
+    condzoom();
     break;
 case 7:
-    enhance();
+    copy();
     break;
 case 8:
-    fourierdraw();
+    enhance();
     break;
 case 9:
-    gamma_correct();
+    fourierdraw();
     break;
 case 10:
-    greyscale();
+    gamma_correct();
     break;
 case 11:
-    halftone();
+    greyscale();
     break;
 case 12:
-    hue_shift();
+    halftone();
     break;
 case 13:
-    invert_color();
+    hexswirl();
     break;
 case 14:
-    invert_phase();
+    hue_shift();
     break;
 case 15:
-    multiply();
+    invert_color();
     break;
 case 16:
-    noise();
+    invert_phase();
     break;
 case 17:
-    offset();
+    multiply();
     break;
 case 18:
-    oscillator();
+    noise();
     break;
 case 19:
-    picture();
+    offset();
     break;
 case 20:
-    pixelate();
+    oscillator();
     break;
 case 21:
-    polygon();
+    picture();
     break;
 case 22:
-    radial();
+    pixelate();
     break;
 case 23:
-    recolor();
+    polygon();
     break;
 case 24:
-    reduce_colors();
+    radial();
     break;
 case 25:
-    reflector();
+    recolor();
     break;
 case 26:
-    ripple();
+    reduce_colors();
     break;
 case 27:
-    rotate();
+    reflector();
     break;
 case 28:
-    superformula();
+    ripple();
     break;
 case 29:
-    swirl();
+    rotate();
     break;
 case 30:
-    threshold();
+    superformula();
     break;
 case 31:
-    tile();
+    swirl();
     break;
 case 32:
-    waveify();
+    threshold();
     break;
 case 33:
-    wavy();
+    tile();
     break;
 case 34:
-    webcam();
+    voronoi();
     break;
 case 35:
+    voronoiswirl();
+    break;
+case 36:
+    waveify();
+    break;
+case 37:
+    wavy();
+    break;
+case 38:
+    webcam();
+    break;
+case 39:
     zoom();
     break;
 

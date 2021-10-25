@@ -281,7 +281,106 @@ vec3 rgb_to_hsv(vec3 rgb) {
     return vec3(h, s, v);
 }
 
+float isGEq(float a, float b) {
+    return sign(sign(a - b) + 1.0);
+}
+
+vec2 get_hex_origin(vec2 coords, float hex_size) {
+    float n = max(hex_size, 0.01);
+    float halfn = n / 2.0;
+
+    float sqrt3 = 1.732;
+
+    float W = sqrt3 * n;
+    float halfW = W/2.0;
+
+    float H = 3.0 * halfn;
+
+    float xidx = floor(coords.x / W);
+    float yidx = floor(coords.y / H);
+
+    // Get top left corner of bounding square
+    vec2 o = vec2(W * xidx, H * yidx);
+
+    // transform coordinates to make square begin at origin
+    vec2 t = coords - o;
+
+    // Hexagon targets in transformed space
+    vec2 vertA = vec2(0.0, 0.0);
+    vec2 vertB = vec2(W, 0.0);
+    vec2 vertC = vec2(halfW, H);
+
+    vec2 vertInvalid = vec2(-1.0, 0.0);
+
+    // pattern alternates every other row
+    if (mod(yidx, 2.0) != 0.0) {
+        t.y = H - t.y;
+    }
+
+    float xLeHalfW = isGEq(halfW, t.x);
+    float yLehalfN = isGEq(halfn, t.y);
+    float yGeN = isGEq(t.y, n);
+
+    float yt = t.y - halfn;
+    float xt = (t.x - halfW) / sqrt3;
+    float xnt = (halfW - t.x) / sqrt3;
+
+    float xntGeYt = isGEq(xnt, yt);
+    float xtGeYt = isGEq(xt, yt);
+
+    vec2 hex =
+        yLehalfN * (
+             xLeHalfW * vertA +
+             (1.0 - xLeHalfW) * vertB) +
+        yGeN * vertC +
+        (1.0 - yLehalfN) * (1.0 - yGeN) * (
+             xLeHalfW * (
+                xntGeYt * vertA +
+                (1.0 - xntGeYt) * vertC) +
+             (1.0 - xLeHalfW) * (
+                xtGeYt * vertB +
+                (1.0 - xtGeYt) * vertC));
+
+    if (mod(yidx, 2.0) != 0.0) {
+        hex.y = H - hex.y;
+    }
+
+   hex += o;
+
+   return hex;
+}
+
+
+
 vec2 t_coords;
+
+/// modulefn: bitfield
+/// moduletag: generator
+
+uniform vec3 u_bf_fg_color; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [1, 1, 1], "names": ["r", "g", "b"] }
+uniform vec3 u_bf_bg_color; /// { "start": [0, 0, 0], "end": [1, 1, 1], "default": [0, 0, 0], "names": ["r", "g", "b"] }
+uniform vec2 u_bf_offset; /// { "start": [-1, -1], "end": [1, 1], "default": [0, 0], "names": ["x", "y"] }
+uniform float u_bf_operator_a; /// { "start": 0, "end": 100, "default": 9 }
+uniform float u_bf_operator_b; /// { "start": 0, "end": 100, "default": 4 }
+uniform bool u_bf_destructive; /// { "default": false }
+
+void bitfield() {
+    // vec2 coords = t_coords.xy;
+    // vec2 c = coords / u_dimensions;
+    // c = 2. * c - 1.;
+    // c *= vec2(u_bf_x_scale, u_bf_y_scale);
+    ivec2 ic = ivec2(t_coords.xy + u_bf_offset * u_dimensions);
+    vec3 color = u_bf_bg_color;
+    float factor = mod(float(ic.x ^ ic.y), u_bf_operator_a) / u_bf_operator_b;
+    color = factor * u_bf_fg_color + (1. - factor) * u_bf_bg_color;
+
+    if (u_bf_destructive) {
+        color_out.rgb = color;
+    } else {
+        color_out.rgb += color;
+    }
+}
+
 
 /// modulefn: blur
 /// moduletag: space
@@ -488,6 +587,33 @@ void halftone() {
     color *= intensity;
 
     color_out = vec4(u_feedback * color, 1.);
+}
+
+
+
+/// modulefn: hexswirl
+/// moduletag: space
+
+uniform float u_hexswirl_factor; /// { "start": 0, "end": "2 * math.pi", "default": 0 }
+uniform float u_hexswirl_size; /// { "start": 0, "end": "100", "default": 5 }
+
+void hexswirl() {
+    vec2 hex_coords = get_hex_origin(t_coords.xy, u_hexswirl_size);
+    float hex_r = (u_hexswirl_size / 2.)/ cos(5. * PI / 12.);
+    vec2 c = (t_coords.xy - hex_coords) / hex_r;
+    c = 2. * c - 1.;
+
+    float r = length(c);
+    float theta = atan(c.y, c.x);
+    theta += r * u_hexswirl_factor;
+    c = r * vec2(cos(theta), sin(theta));
+
+    c  = (c + 1.) / 2.;
+
+    c *= hex_r;
+    c += hex_coords;
+
+    color_out = vec4(u_feedback * texelFetch(u_texture, ivec2(c), 0).xyz, 1.);
 }
 
 
@@ -1006,6 +1132,70 @@ void tile() {
 }
 
 
+/// modulefn: voronoi
+/// moduletag: color
+
+uniform sampler2D u_voronoi_data; /// custom
+uniform int u_voronoi_count; /// custom
+
+void voronoi() {
+    vec2 pt = t_coords / u_dimensions;
+    vec2 cell_pt = vec2(0.);
+    float dist = -1.;
+    for (int i = 0; i < u_voronoi_count; i++) {
+        vec4 candidate_ = texelFetch(u_voronoi_data, ivec2(i / 2, 0), 0);
+        vec2 candidate = (i % 2 == 0) ? candidate_.rg : candidate_.ba;
+        float curr_dist = length(candidate - pt);
+        if (dist < 0. || curr_dist < dist) {
+            dist = curr_dist;
+            cell_pt = candidate;
+        }
+    }
+
+    color_out.xyz = texelFetch(u_texture, ivec2(cell_pt * u_dimensions), 0).rgb;
+}
+
+
+/// modulefn: voronoiswirl
+/// moduletag: space
+
+uniform sampler2D u_voronoiswirl_data; /// custom
+uniform int u_voronoiswirl_count; /// custom
+uniform float u_voronoiswirl_factor; /// { "start": 0, "end": "2 * math.pi", "default": 0 }
+
+void voronoiswirl() {
+    vec2 pt = t_coords / u_dimensions;
+    vec2 cell_pt = vec2(0.);
+    float dist = -1.;
+    for (int i = 0; i < u_voronoiswirl_count; i++) {
+        vec4 candidate_ = texelFetch(u_voronoiswirl_data, ivec2(i / 2, 0), 0);
+        vec2 candidate = (i % 2 == 0) ? candidate_.rg : candidate_.ba;
+        float curr_dist = length(candidate - pt);
+        if (dist < 0. || curr_dist < dist) {
+            dist = curr_dist;
+            cell_pt = candidate;
+        }
+    }
+
+    pt = 2. * pt - 1.;
+    vec2 c = pt - cell_pt;
+    c = (c + 1.) / 2.;
+    // c = 2. * c - 1.;
+
+    // float r = length(c);
+    // float theta = atan(c.y, c.x);
+    // theta += r * u_voronoiswirl_factor;
+    // c = r * vec2(cos(theta), sin(theta));
+
+    // c  = (c + 1.) / 2.;
+
+    // c += cell_pt;
+
+    color_out = vec4(u_feedback * texelFetch(u_texture, ivec2(c *u_dimensions), 0).xyz, 1.);
+
+}
+
+
 /// modulefn: waveify
 /// moduletag: color
 
@@ -1119,108 +1309,120 @@ void main() {
     case FN_RENDER:
         break;
 case 1:
-    blur();
+    bitfield();
     break;
 case 2:
-    checkerfill();
+    blur();
     break;
 case 3:
-    chromakey();
+    checkerfill();
     break;
 case 4:
-    composite();
+    chromakey();
     break;
 case 5:
-    condzoom();
+    composite();
     break;
 case 6:
-    copy();
+    condzoom();
     break;
 case 7:
-    enhance();
+    copy();
     break;
 case 8:
-    fourierdraw();
+    enhance();
     break;
 case 9:
-    gamma_correct();
+    fourierdraw();
     break;
 case 10:
-    greyscale();
+    gamma_correct();
     break;
 case 11:
-    halftone();
+    greyscale();
     break;
 case 12:
-    hue_shift();
+    halftone();
     break;
 case 13:
-    invert_color();
+    hexswirl();
     break;
 case 14:
-    invert_phase();
+    hue_shift();
     break;
 case 15:
-    multiply();
+    invert_color();
     break;
 case 16:
-    noise();
+    invert_phase();
     break;
 case 17:
-    offset();
+    multiply();
     break;
 case 18:
-    oscillator();
+    noise();
     break;
 case 19:
-    picture();
+    offset();
     break;
 case 20:
-    pixelate();
+    oscillator();
     break;
 case 21:
-    polygon();
+    picture();
     break;
 case 22:
-    radial();
+    pixelate();
     break;
 case 23:
-    recolor();
+    polygon();
     break;
 case 24:
-    reduce_colors();
+    radial();
     break;
 case 25:
-    reflector();
+    recolor();
     break;
 case 26:
-    ripple();
+    reduce_colors();
     break;
 case 27:
-    rotate();
+    reflector();
     break;
 case 28:
-    superformula();
+    ripple();
     break;
 case 29:
-    swirl();
+    rotate();
     break;
 case 30:
-    threshold();
+    superformula();
     break;
 case 31:
-    tile();
+    swirl();
     break;
 case 32:
-    waveify();
+    threshold();
     break;
 case 33:
-    wavy();
+    tile();
     break;
 case 34:
-    webcam();
+    voronoi();
     break;
 case 35:
+    voronoiswirl();
+    break;
+case 36:
+    waveify();
+    break;
+case 37:
+    wavy();
+    break;
+case 38:
+    webcam();
+    break;
+case 39:
     zoom();
     break;
 
@@ -1285,6 +1487,7 @@ class Type extends HTMLElement {
 
     constructor(range, defaultValue) {
         super();
+        this.synth = null;
         this.range = range;
         if (this.range === null || this.range === undefined)
             this.range = eval(this.getAttribute("range"));
@@ -1460,7 +1663,7 @@ class FloatBar extends Type {
             if (this.generate)
                 curr_params = this.params;
             const generator = new FunctionGenerator(
-                modal, this.func_select.value, curr_params, resolver);
+                modal, this.func_select.value, curr_params, resolver, this.synth);
             const params = await p;
             generator.remove();
             modal.remove();
@@ -1477,6 +1680,7 @@ class FloatBar extends Type {
     }
 
     step(time, synth) {
+        this.synth = synth;
         if (this.generate)
             this.set_value(this.func(time, this.range, this.params, synth));
     }
@@ -1580,6 +1784,7 @@ class VecEntry extends Type {
     }
 
     step(time, synth) {
+        this.synth = synth;
         for (let i = 0; i < this.nelem; i++)
             this.floats[i].step(time, synth);
     }
@@ -1936,6 +2141,239 @@ class ReduceColors_reduce_colors_count extends Type {
     }
 }
 defineEl('reducecolors-reduce-colors-count', ReduceColors_reduce_colors_count);
+
+class Voronoi_voronoi_data extends Type {
+    customonchange(element) {
+        try {
+            this.synth._get_stageModules(this.channelid)[element.name].fn_params.params['voronoi_data'] = this.tex;
+            this.synth._get_stageModules(this.channelid)[element.name].fn_params.params['voronoi_count'] = this.count;
+        } catch (e) {
+            // TODO custom elements break with meta modules
+        }
+
+        element.args.voronoi_count.set_value(this.dimensions);
+    }
+
+    constructor(synth) {
+        const limit = 1024;
+        const img = new Image();
+        const tex = createTexture(synth.gl, [limit / 2, 1]);
+        super(undefined, tex);
+
+        this.tex = tex;
+        this.synth = synth;
+        this.channelid = synth.active_channel;
+
+        // we waste 1 float for the alpha channel - TODO
+        this.data = new Float32Array(4 * limit / 2);
+        // this.count = 100;
+        this.count = 100;
+        this.generate_colors();
+
+        updateTexture(synth.gl, [limit / 2, 1], this.tex, this.data);
+
+        this.el = document.createElement("div");
+        const btn = document.createElement("button");
+        btn.addEventListener('click', () => {
+            this.generate_colors();
+            this.dispatchEvent(new Event('change'));
+        });
+        btn.innerText = "Re-pick points";
+        this.el.appendChild(btn);
+
+        this.el.appendChild(document.createElement('br'));
+        const label = document.createElement("label");
+        label.innerText = "Number of points: ";
+        label.for = "num_points";
+        this.input = new IntEntry([1, limit], 100);
+        this.input.id = "num_points";
+        this.input.addEventListener('change', () => { this.set_count(this.input.value); });
+        this.el.appendChild(label);
+        this.el.appendChild(this.input);
+
+        // TODO add a ui to edit colors individually
+
+        this.shadow.appendChild(this.el);
+
+        console.log(this);
+    }
+
+    step(time, synth) {
+        for (let i = 0; i < 4 * this.count / 2; i++) {
+            this.data[i] += 0.001 * (Math.random() - 0.5);
+            if (this.data[i] < 0) {
+                this.data[i] = 0;
+            }
+            if (this.data[i] > 1) {
+                this.data[i] = 1;
+            }
+        }
+        updateTexture(this.synth.gl, [256, 1], this.tex, this.data);
+
+        this.input.step(time, synth);
+    }
+
+    set_count(value) {
+        this.count = value;
+        this.generate_colors();
+        // console.log("New count", input.value);
+        this.dispatchEvent(new Event('change'));
+
+    }
+
+    generate_colors() {
+        // console.log("Regenerating", this.count);
+        for (let i = 0; i < 4 * this.count / 2; i++)
+            this.data[i] = Math.random();
+        updateTexture(this.synth.gl, [256, 1], this.tex, this.data);
+    }
+
+    save() {
+        const data = [];
+        for (let i = 0; i < 4 * this.count / 2; i++)
+            data.push(this.data[i])
+        return [...data];
+    }
+
+    load(data) {
+        for (let i = 0; i < data.length; i++)
+            this.data[i] = data[i];
+        this.count = 2 * data.length / 4;
+        updateTexture(this.synth.gl, [256, 1], this.tex, this.data);
+        this.dispatchEvent(new Event('change'));
+    }
+}
+defineEl('voronoi-voronoi-data', Voronoi_voronoi_data);
+
+class Voronoi_voronoi_count extends Type {
+    constructor(synth) {
+        super(undefined, 100);
+        this.data = document.createElement('code');
+        this.data.style = 'border: solid 1px; padding: 2px';
+        this.data.innerText = 100;
+        this.shadow.appendChild(this.data);
+    }
+
+    set_value(value) {
+        this.data.innerText = value;
+    }
+
+    save() {
+        return undefined;
+    }
+}
+defineEl('voronoi-voronoi-count', Voronoi_voronoi_count);
+
+class Voronoiswirl_voronoiswirl_data extends Type {
+    customonchange(element) {
+        try {
+            this.synth._get_stageModules(this.channelid)[element.name].fn_params.params['voronoiswirl_data'] = this.tex;
+            this.synth._get_stageModules(this.channelid)[element.name].fn_params.params['voronoiswirl_count'] = this.count;
+        } catch (e) {
+            // TODO custom elements break with meta modules
+        }
+
+        element.args.voronoiswirl_count.set_value(this.dimensions);
+    }
+
+    constructor(synth) {
+        const limit = 1024;
+        const img = new Image();
+        const tex = createTexture(synth.gl, [limit / 2, 1]);
+        super(undefined, tex);
+
+        this.tex = tex;
+        this.synth = synth;
+        this.channelid = synth.active_channel;
+
+        // we waste 1 float for the alpha channel - TODO
+        this.data = new Float32Array(4 * limit / 2);
+        // this.count = 100;
+        this.count = 100;
+        this.generate_colors();
+
+        updateTexture(synth.gl, [limit / 2, 1], this.tex, this.data);
+
+        this.el = document.createElement("div");
+        const btn = document.createElement("button");
+        btn.addEventListener('click', () => {
+            this.generate_colors();
+            this.dispatchEvent(new Event('change'));
+        });
+        btn.innerText = "Re-pick points";
+        this.el.appendChild(btn);
+
+        this.el.appendChild(document.createElement('br'));
+        const label = document.createElement("label");
+        label.innerText = "Number of points: ";
+        label.for = "num_points";
+        this.input = new IntEntry([1, limit], 100);
+        this.input.id = "num_points";
+        this.input.addEventListener('change', () => { this.set_count(this.input.value); });
+        this.el.appendChild(label);
+        this.el.appendChild(this.input);
+
+        // TODO add a ui to edit colors individually
+
+        this.shadow.appendChild(this.el);
+
+        console.log(this);
+    }
+
+    step(time, synth) {
+        this.input.step(time, synth);
+    }
+
+    set_count(value) {
+        this.count = value;
+        this.generate_colors();
+        // console.log("New count", input.value);
+        this.dispatchEvent(new Event('change'));
+
+    }
+
+    generate_colors() {
+        // console.log("Regenerating", this.count);
+        for (let i = 0; i < 4 * this.count / 2; i++)
+            this.data[i] = Math.random();
+        updateTexture(this.synth.gl, [256, 1], this.tex, this.data);
+    }
+
+    save() {
+        const data = [];
+        for (let i = 0; i < 4 * this.count / 2; i++)
+            data.push(this.data[i])
+        return [...data];
+    }
+
+    load(data) {
+        for (let i = 0; i < data.length; i++)
+            this.data[i] = data[i];
+        this.count = 2 * data.length / 4;
+        updateTexture(this.synth.gl, [256, 1], this.tex, this.data);
+        this.dispatchEvent(new Event('change'));
+    }
+}
+defineEl('voronoiswirl-voronoiswirl-data', Voronoiswirl_voronoiswirl_data);
+
+class Voronoiswirl_voronoiswirl_count extends Type {
+    constructor(synth) {
+        super(undefined, 100);
+        this.data = document.createElement('code');
+        this.data.style = 'border: solid 1px; padding: 2px';
+        this.data.innerText = 100;
+        this.shadow.appendChild(this.data);
+    }
+
+    set_value(value) {
+        this.data.innerText = value;
+    }
+
+    save() {
+        return undefined;
+    }
+}
+defineEl('voronoiswirl-voronoiswirl-count', Voronoiswirl_voronoiswirl_count);
 // ---------- END customui.js ------
 
 // ---------- function_generator.js ----------
@@ -2175,7 +2613,7 @@ const generators = {
 class FunctionGenerator{
     cancel = false;
 
-    constructor (parentEl, current, current_params, resolver) {
+    constructor (parentEl, current, current_params, resolver, synth) {
         const container = document.createElement('div');
         container.className = "functiongen";
 
@@ -2220,6 +2658,7 @@ class FunctionGenerator{
         container.appendChild(function_ui);
         parentEl.appendChild(container);
 
+        this.synth = synth;
         const f = () => {
             this.draw_axes();
             this.draw_function();
@@ -2257,7 +2696,7 @@ class FunctionGenerator{
         const maxy = this.graph.height / 2;
         this.ctx.moveTo(0, maxy);
         for (let i = 0; i < this.graph.width; i++) {
-            this.ctx.lineTo(i, maxy - maxy * this.func(i, [-1, 1], this.params));
+            this.ctx.lineTo(i, maxy - maxy * this.func(i, [-1, 1], this.params, this.synth));
         }
         this.ctx.stroke();
     }
@@ -2545,8 +2984,40 @@ defineEl('transform-element', TransformElement);
 // ---------- END synth_element_base.js ------
 
 // ---------- build/module_lib.js ----------
-        class Blur extends SynthFunction {
+        class Bitfield extends SynthFunction {
             id = 1
+            params = {}
+
+            constructor(bf_fg_color, bf_bg_color, bf_offset, bf_operator_a, bf_operator_b, bf_destructive, feedback) {
+                super(feedback || 0);
+                this.params.bf_fg_color = bf_fg_color;
+this.params.bf_bg_color = bf_bg_color;
+this.params.bf_offset = bf_offset;
+this.params.bf_operator_a = bf_operator_a;
+this.params.bf_operator_b = bf_operator_b;
+this.params.bf_destructive = bf_destructive;
+
+            }
+        }
+
+        class BitfieldElement extends SynthElementBase {
+            get_title() {
+                return "Bitfield";
+            }
+
+            get_fn() {
+                return Bitfield;
+            }
+
+            get_args() {
+                return {
+                    bf_fg_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,1,1]),bf_bg_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [0,0,0]),bf_offset: new VecEntry(2, ["x","y"], [[-1, 1],[-1, 1],], [0,0]),bf_operator_a: new FloatBar([0,100], 9),bf_operator_b: new FloatBar([0,100], 4),bf_destructive: new BoolEntry(false)
+                }
+            }
+        }
+        defineEl('synth-bitfield', BitfieldElement);
+        class Blur extends SynthFunction {
+            id = 2
             params = {}
 
             constructor(blur_stride_x, blur_stride_y, feedback) {
@@ -2574,7 +3045,7 @@ this.params.blur_stride_y = blur_stride_y;
         }
         defineEl('synth-blur', BlurElement);
 class Checkerfill extends SynthFunction {
-    id = 2
+    id = 3
     params = {}
 
     constructor(checkerfill_size, feedback) {
@@ -2601,7 +3072,7 @@ class CheckerfillElement extends SynthElementBase {
 }
 defineEl('synth-checkerfill', CheckerfillElement);
         class Chromakey extends SynthFunction {
-            id = 3
+            id = 4
             params = {}
 
             constructor(chromakey_key, chromakey_strength, chromakey_map, feedback) {
@@ -2630,7 +3101,7 @@ this.params.chromakey_map = chromakey_map;
         }
         defineEl('synth-chromakey', ChromakeyElement);
         class Composite extends SynthFunction {
-            id = 4
+            id = 5
             params = {}
 
             constructor(composite_map_1, composite_map_2, feedback) {
@@ -2658,7 +3129,7 @@ this.params.composite_map_2 = composite_map_2;
         }
         defineEl('synth-composite', CompositeElement);
         class Condzoom extends SynthFunction {
-            id = 5
+            id = 6
             params = {}
 
             constructor(condzoom_strength, condzoom_map, feedback) {
@@ -2686,7 +3157,7 @@ this.params.condzoom_map = condzoom_map;
         }
         defineEl('synth-condzoom', CondzoomElement);
 class Copy extends SynthFunction {
-    id = 6
+    id = 7
     params = {}
 
     constructor(copy_map, feedback) {
@@ -2713,7 +3184,7 @@ class CopyElement extends SynthElementBase {
 }
 defineEl('synth-copy', CopyElement);
 class Enhance extends SynthFunction {
-    id = 7
+    id = 8
     params = {}
 
     constructor(enhance, feedback) {
@@ -2740,7 +3211,7 @@ class EnhanceElement extends SynthElementBase {
 }
 defineEl('synth-enhance', EnhanceElement);
         class Fourierdraw extends SynthFunction {
-            id = 8
+            id = 9
             params = {}
 
             constructor(fd_r, fd_theta, fd_draw_r, fd_color, fd_thickness, fd_smooth_edges, fd_fill, fd_destructive, feedback) {
@@ -2774,7 +3245,7 @@ this.params.fd_destructive = fd_destructive;
         }
         defineEl('synth-fourierdraw', FourierdrawElement);
 class GammaCorrect extends SynthFunction {
-    id = 9
+    id = 10
     params = {}
 
     constructor(gamma_correction, feedback) {
@@ -2801,7 +3272,7 @@ class GammaCorrectElement extends SynthElementBase {
 }
 defineEl('synth-gammacorrect', GammaCorrectElement);
 class Greyscale extends SynthFunction {
-    id = 10
+    id = 11
     params = {}
 
     constructor(greyscale_luminance, feedback) {
@@ -2828,7 +3299,7 @@ class GreyscaleElement extends SynthElementBase {
 }
 defineEl('synth-greyscale', GreyscaleElement);
         class Halftone extends SynthFunction {
-            id = 11
+            id = 12
             params = {}
 
             constructor(halftone_factor, halftone_invert, halftone_strength, feedback) {
@@ -2856,8 +3327,36 @@ this.params.halftone_strength = halftone_strength;
             }
         }
         defineEl('synth-halftone', HalftoneElement);
+        class Hexswirl extends SynthFunction {
+            id = 13
+            params = {}
+
+            constructor(hexswirl_factor, hexswirl_size, feedback) {
+                super(feedback || 0);
+                this.params.hexswirl_factor = hexswirl_factor;
+this.params.hexswirl_size = hexswirl_size;
+
+            }
+        }
+
+        class HexswirlElement extends SynthElementBase {
+            get_title() {
+                return "Hexswirl";
+            }
+
+            get_fn() {
+                return Hexswirl;
+            }
+
+            get_args() {
+                return {
+                    hexswirl_factor: new FloatBar([0,6.283185307179586], 0),hexswirl_size: new FloatBar([0,100.0], 5)
+                }
+            }
+        }
+        defineEl('synth-hexswirl', HexswirlElement);
         class HueShift extends SynthFunction {
-            id = 12
+            id = 14
             params = {}
 
             constructor(hue_shift, saturate_shift, feedback) {
@@ -2885,7 +3384,7 @@ this.params.saturate_shift = saturate_shift;
         }
         defineEl('synth-hueshift', HueShiftElement);
 class InvertColor extends SynthFunction {
-    id = 13
+    id = 15
     params = {}
 
     constructor(feedback) {
@@ -2911,7 +3410,7 @@ class InvertColorElement extends SynthElementBase {
 }
 defineEl('synth-invertcolor', InvertColorElement);
 class InvertPhase extends SynthFunction {
-    id = 14
+    id = 16
     params = {}
 
     constructor(feedback) {
@@ -2937,7 +3436,7 @@ class InvertPhaseElement extends SynthElementBase {
 }
 defineEl('synth-invertphase', InvertPhaseElement);
 class Multiply extends SynthFunction {
-    id = 15
+    id = 17
     params = {}
 
     constructor(multiply_map, feedback) {
@@ -2964,7 +3463,7 @@ class MultiplyElement extends SynthElementBase {
 }
 defineEl('synth-multiply', MultiplyElement);
         class Noise extends SynthFunction {
-            id = 16
+            id = 18
             params = {}
 
             constructor(noise_r, noise_g, noise_b, feedback) {
@@ -2993,7 +3492,7 @@ this.params.noise_b = noise_b;
         }
         defineEl('synth-noise', NoiseElement);
         class Offset extends SynthFunction {
-            id = 17
+            id = 19
             params = {}
 
             constructor(offsets_x, offsets_y, feedback) {
@@ -3021,7 +3520,7 @@ this.params.offsets_y = offsets_y;
         }
         defineEl('synth-offset', OffsetElement);
         class Oscillator extends SynthFunction {
-            id = 18
+            id = 20
             params = {}
 
             constructor(osc_f, osc_c, osc_color, feedback) {
@@ -3050,7 +3549,7 @@ this.params.osc_color = osc_color;
         }
         defineEl('synth-oscillator', OscillatorElement);
         class Picture extends SynthFunction {
-            id = 19
+            id = 21
             params = {}
 
             constructor(picture_texture, picture_dimensions, feedback) {
@@ -3078,7 +3577,7 @@ this.params.picture_dimensions = picture_dimensions;
         }
         defineEl('synth-picture', PictureElement);
 class Pixelate extends SynthFunction {
-    id = 20
+    id = 22
     params = {}
 
     constructor(pixelate_factor, feedback) {
@@ -3105,7 +3604,7 @@ class PixelateElement extends SynthElementBase {
 }
 defineEl('synth-pixelate', PixelateElement);
         class Polygon extends SynthFunction {
-            id = 21
+            id = 23
             params = {}
 
             constructor(polygon_color, polygon_n, polygon_r, polygon_thickness, polygon_smooth_edges, polygon_fill, polygon_destructive, feedback) {
@@ -3138,7 +3637,7 @@ this.params.polygon_destructive = polygon_destructive;
         }
         defineEl('synth-polygon', PolygonElement);
         class Radial extends SynthFunction {
-            id = 22
+            id = 24
             params = {}
 
             constructor(radial_strength, radial_center, feedback) {
@@ -3166,7 +3665,7 @@ this.params.radial_center = radial_center;
         }
         defineEl('synth-radial', RadialElement);
         class Recolor extends SynthFunction {
-            id = 23
+            id = 25
             params = {}
 
             constructor(recolor_new_r, recolor_new_g, recolor_new_b, feedback) {
@@ -3195,7 +3694,7 @@ this.params.recolor_new_b = recolor_new_b;
         }
         defineEl('synth-recolor', RecolorElement);
         class ReduceColors extends SynthFunction {
-            id = 24
+            id = 26
             params = {}
 
             constructor(reduce_colors_data, reduce_colors_count, feedback) {
@@ -3223,7 +3722,7 @@ this.params.reduce_colors_count = reduce_colors_count;
         }
         defineEl('synth-reducecolors', ReduceColorsElement);
         class Reflector extends SynthFunction {
-            id = 25
+            id = 27
             params = {}
 
             constructor(reflect_theta, reflect_y, reflect_x, feedback) {
@@ -3252,7 +3751,7 @@ this.params.reflect_x = reflect_x;
         }
         defineEl('synth-reflector', ReflectorElement);
         class Ripple extends SynthFunction {
-            id = 26
+            id = 28
             params = {}
 
             constructor(ripple_freq, ripple_c, ripple_strength, ripple_center, feedback) {
@@ -3282,7 +3781,7 @@ this.params.ripple_center = ripple_center;
         }
         defineEl('synth-ripple', RippleElement);
 class Rotate extends SynthFunction {
-    id = 27
+    id = 29
     params = {}
 
     constructor(rotation, feedback) {
@@ -3309,7 +3808,7 @@ class RotateElement extends SynthElementBase {
 }
 defineEl('synth-rotate', RotateElement);
         class Superformula extends SynthFunction {
-            id = 28
+            id = 30
             params = {}
 
             constructor(sf_color, sf_m, sf_n, sf_thickness, sf_smooth_edges, sf_fill, sf_destructive, feedback) {
@@ -3342,7 +3841,7 @@ this.params.sf_destructive = sf_destructive;
         }
         defineEl('synth-superformula', SuperformulaElement);
 class Swirl extends SynthFunction {
-    id = 29
+    id = 31
     params = {}
 
     constructor(factor, feedback) {
@@ -3369,7 +3868,7 @@ class SwirlElement extends SynthElementBase {
 }
 defineEl('synth-swirl', SwirlElement);
         class Threshold extends SynthFunction {
-            id = 30
+            id = 32
             params = {}
 
             constructor(threshold_high_r, threshold_high_g, threshold_high_b, thresholds, feedback) {
@@ -3399,7 +3898,7 @@ this.params.thresholds = thresholds;
         }
         defineEl('synth-threshold', ThresholdElement);
         class Tile extends SynthFunction {
-            id = 31
+            id = 33
             params = {}
 
             constructor(tile_x, tile_y, feedback) {
@@ -3426,8 +3925,65 @@ this.params.tile_y = tile_y;
             }
         }
         defineEl('synth-tile', TileElement);
+        class Voronoi extends SynthFunction {
+            id = 34
+            params = {}
+
+            constructor(voronoi_data, voronoi_count, feedback) {
+                super(feedback || 0);
+                this.params.voronoi_data = voronoi_data;
+this.params.voronoi_count = voronoi_count;
+
+            }
+        }
+
+        class VoronoiElement extends SynthElementBase {
+            get_title() {
+                return "Voronoi";
+            }
+
+            get_fn() {
+                return Voronoi;
+            }
+
+            get_args() {
+                return {
+                    voronoi_data: new Voronoi_voronoi_data(this.synth),voronoi_count: new Voronoi_voronoi_count(this.synth)
+                }
+            }
+        }
+        defineEl('synth-voronoi', VoronoiElement);
+        class Voronoiswirl extends SynthFunction {
+            id = 35
+            params = {}
+
+            constructor(voronoiswirl_data, voronoiswirl_count, voronoiswirl_factor, feedback) {
+                super(feedback || 0);
+                this.params.voronoiswirl_data = voronoiswirl_data;
+this.params.voronoiswirl_count = voronoiswirl_count;
+this.params.voronoiswirl_factor = voronoiswirl_factor;
+
+            }
+        }
+
+        class VoronoiswirlElement extends SynthElementBase {
+            get_title() {
+                return "Voronoiswirl";
+            }
+
+            get_fn() {
+                return Voronoiswirl;
+            }
+
+            get_args() {
+                return {
+                    voronoiswirl_data: new Voronoiswirl_voronoiswirl_data(this.synth),voronoiswirl_count: new Voronoiswirl_voronoiswirl_count(this.synth),voronoiswirl_factor: new FloatBar([0,6.283185307179586], 0)
+                }
+            }
+        }
+        defineEl('synth-voronoiswirl', VoronoiswirlElement);
         class Waveify extends SynthFunction {
-            id = 32
+            id = 36
             params = {}
 
             constructor(waveify_a, waveify_f, waveify_c, feedback) {
@@ -3456,7 +4012,7 @@ this.params.waveify_c = waveify_c;
         }
         defineEl('synth-waveify', WaveifyElement);
         class Wavy extends SynthFunction {
-            id = 33
+            id = 37
             params = {}
 
             constructor(wavy_freq_x, wavy_c_x, wavy_strength_x, wavy_freq_y, wavy_c_y, wavy_strength_y, feedback) {
@@ -3488,7 +4044,7 @@ this.params.wavy_strength_y = wavy_strength_y;
         }
         defineEl('synth-wavy', WavyElement);
         class Webcam extends SynthFunction {
-            id = 34
+            id = 38
             params = {}
 
             constructor(webcam_texture, webcam_dimensions, webcam_invert_x, webcam_invert_y, feedback) {
@@ -3518,7 +4074,7 @@ this.params.webcam_invert_y = webcam_invert_y;
         }
         defineEl('synth-webcam', WebcamElement);
         class Zoom extends SynthFunction {
-            id = 35
+            id = 39
             params = {}
 
             constructor(zoom, zoom_center, feedback) {
@@ -3545,7 +4101,7 @@ this.params.zoom_center = zoom_center;
             }
         }
         defineEl('synth-zoom', ZoomElement);
-const MODULE_IDS = {"blur": {class: "BlurElement", tag: "space"},"checkerfill": {class: "CheckerfillElement", tag: "space"},"chromakey": {class: "ChromakeyElement", tag: "channels"},"composite": {class: "CompositeElement", tag: "channels"},"condzoom": {class: "CondzoomElement", tag: "channels"},"copy": {class: "CopyElement", tag: "channels"},"enhance": {class: "EnhanceElement", tag: "color"},"fourierdraw": {class: "FourierdrawElement", tag: "generator"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"greyscale": {class: "GreyscaleElement", tag: "color"},"halftone": {class: "HalftoneElement", tag: "space"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"invert phase": {class: "InvertPhaseElement", tag: "color"},"multiply": {class: "MultiplyElement", tag: "channels"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"polygon": {class: "PolygonElement", tag: "generator"},"radial": {class: "RadialElement", tag: "color"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"ripple": {class: "RippleElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"waveify": {class: "WaveifyElement", tag: "color"},"wavy": {class: "WavyElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
+const MODULE_IDS = {"bitfield": {class: "BitfieldElement", tag: "generator"},"blur": {class: "BlurElement", tag: "space"},"checkerfill": {class: "CheckerfillElement", tag: "space"},"chromakey": {class: "ChromakeyElement", tag: "channels"},"composite": {class: "CompositeElement", tag: "channels"},"condzoom": {class: "CondzoomElement", tag: "channels"},"copy": {class: "CopyElement", tag: "channels"},"enhance": {class: "EnhanceElement", tag: "color"},"fourierdraw": {class: "FourierdrawElement", tag: "generator"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"greyscale": {class: "GreyscaleElement", tag: "color"},"halftone": {class: "HalftoneElement", tag: "space"},"hexswirl": {class: "HexswirlElement", tag: "space"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"invert phase": {class: "InvertPhaseElement", tag: "color"},"multiply": {class: "MultiplyElement", tag: "channels"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"polygon": {class: "PolygonElement", tag: "generator"},"radial": {class: "RadialElement", tag: "color"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"ripple": {class: "RippleElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"voronoi": {class: "VoronoiElement", tag: "color"},"voronoiswirl": {class: "VoronoiswirlElement", tag: "space"},"waveify": {class: "WaveifyElement", tag: "color"},"wavy": {class: "WavyElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
 // ---------- END build/module_lib.js ------
 
 // ---------- meta_module.js ----------
