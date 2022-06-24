@@ -214,7 +214,7 @@ precision mediump int;
 #define PI 3.1415926538
 #define GOLDEN_RATIO 1.6180339887
 
-#define FN_RENDER    0
+#define FN_RENDER 0
 
 uniform vec2 u_dimensions;
 uniform vec2 u_tex_dimensions;
@@ -227,130 +227,121 @@ uniform int u_function;
 uniform float u_feedback;
 uniform bool u_constrain_to_transform;
 
+uniform bool u_no_clamp;
+
 out vec4 color_out;
 
 vec3 hsv_to_rgb(vec3 hsv) {
-    float h = hsv.r;
-    while (h > 360.)
-        h -= 360.;
+  float h = hsv.r;
+  while (h > 360.)
+    h -= 360.;
 
-    float s = hsv.g;
-    float v = hsv.b;
+  float s = hsv.g;
+  float v = hsv.b;
 
-    float c = v * s;
-    float x = c * float(1 - abs(int(h / 60.) % 2 - 1));
-    float m = v - c;
+  float c = v * s;
+  float x = c * float(1 - abs(int(h / 60.) % 2 - 1));
+  float m = v - c;
 
-    vec3 rgb = vec3(0.);
-    if (h < 60.)
-        rgb = vec3(c, x, 0.);
-    else if (h < 120.)
-        rgb = vec3(x, c, 0.);
-    else if (h < 180.)
-        rgb = vec3(0., c, x);
-    else if (h < 240.)
-        rgb = vec3(0., x, c);
-    else if (h < 300.)
-        rgb = vec3(x, 0., c);
-    else
-        rgb = vec3(c, 0., x);
+  vec3 rgb = vec3(0.);
+  if (h < 60.)
+    rgb = vec3(c, x, 0.);
+  else if (h < 120.)
+    rgb = vec3(x, c, 0.);
+  else if (h < 180.)
+    rgb = vec3(0., c, x);
+  else if (h < 240.)
+    rgb = vec3(0., x, c);
+  else if (h < 300.)
+    rgb = vec3(x, 0., c);
+  else
+    rgb = vec3(c, 0., x);
 
-    rgb += m;
-    return rgb;
+  rgb += m;
+  return rgb;
 }
 
 vec3 rgb_to_hsv(vec3 rgb) {
-    float c_max = max(max(rgb.r, rgb.g), rgb.b);
-    float c_min = min(min(rgb.r, rgb.g), rgb.b);
-    float delta = c_max - c_min;
-    float h = 0.;
-    if (delta == 0.)
-        h = 0.;
-    else if (c_max == rgb.r)
-        h = 60. * float(int((rgb.g - rgb.b) / delta) % 6);
-    else if (c_max == rgb.g)
-        h = 60. * (((rgb.b - rgb.r) / delta) + 2.);
-    else if (c_max == rgb.b)
-        h = 60. * (((rgb.r - rgb.g) / delta) + 4.);
+  float c_max = max(max(rgb.r, rgb.g), rgb.b);
+  float c_min = min(min(rgb.r, rgb.g), rgb.b);
+  float delta = c_max - c_min;
+  float h = 0.;
+  if (delta == 0.)
+    h = 0.;
+  else if (c_max == rgb.r)
+    h = 60. * float(int((rgb.g - rgb.b) / delta) % 6);
+  else if (c_max == rgb.g)
+    h = 60. * (((rgb.b - rgb.r) / delta) + 2.);
+  else if (c_max == rgb.b)
+    h = 60. * (((rgb.r - rgb.g) / delta) + 4.);
 
-    float s = 0.;
-    if (c_max != 0.)
-        s = delta / c_max;
-    float v = c_max;
+  float s = 0.;
+  if (c_max != 0.)
+    s = delta / c_max;
+  float v = c_max;
 
-    return vec3(h, s, v);
+  return vec3(h, s, v);
 }
 
-float isGEq(float a, float b) {
-    return sign(sign(a - b) + 1.0);
-}
+float isGEq(float a, float b) { return sign(sign(a - b) + 1.0); }
 
 vec2 get_hex_origin(vec2 coords, float hex_size) {
-    float n = max(hex_size, 0.01);
-    float halfn = n / 2.0;
+  float n = max(hex_size, 0.01);
+  float halfn = n / 2.0;
 
-    float sqrt3 = 1.732;
+  float sqrt3 = 1.732;
 
-    float W = sqrt3 * n;
-    float halfW = W/2.0;
+  float W = sqrt3 * n;
+  float halfW = W / 2.0;
 
-    float H = 3.0 * halfn;
+  float H = 3.0 * halfn;
 
-    float xidx = floor(coords.x / W);
-    float yidx = floor(coords.y / H);
+  float xidx = floor(coords.x / W);
+  float yidx = floor(coords.y / H);
 
-    // Get top left corner of bounding square
-    vec2 o = vec2(W * xidx, H * yidx);
+  // Get top left corner of bounding square
+  vec2 o = vec2(W * xidx, H * yidx);
 
-    // transform coordinates to make square begin at origin
-    vec2 t = coords - o;
+  // transform coordinates to make square begin at origin
+  vec2 t = coords - o;
 
-    // Hexagon targets in transformed space
-    vec2 vertA = vec2(0.0, 0.0);
-    vec2 vertB = vec2(W, 0.0);
-    vec2 vertC = vec2(halfW, H);
+  // Hexagon targets in transformed space
+  vec2 vertA = vec2(0.0, 0.0);
+  vec2 vertB = vec2(W, 0.0);
+  vec2 vertC = vec2(halfW, H);
 
-    vec2 vertInvalid = vec2(-1.0, 0.0);
+  vec2 vertInvalid = vec2(-1.0, 0.0);
 
-    // pattern alternates every other row
-    if (mod(yidx, 2.0) != 0.0) {
-        t.y = H - t.y;
-    }
+  // pattern alternates every other row
+  if (mod(yidx, 2.0) != 0.0) {
+    t.y = H - t.y;
+  }
 
-    float xLeHalfW = isGEq(halfW, t.x);
-    float yLehalfN = isGEq(halfn, t.y);
-    float yGeN = isGEq(t.y, n);
+  float xLeHalfW = isGEq(halfW, t.x);
+  float yLehalfN = isGEq(halfn, t.y);
+  float yGeN = isGEq(t.y, n);
 
-    float yt = t.y - halfn;
-    float xt = (t.x - halfW) / sqrt3;
-    float xnt = (halfW - t.x) / sqrt3;
+  float yt = t.y - halfn;
+  float xt = (t.x - halfW) / sqrt3;
+  float xnt = (halfW - t.x) / sqrt3;
 
-    float xntGeYt = isGEq(xnt, yt);
-    float xtGeYt = isGEq(xt, yt);
+  float xntGeYt = isGEq(xnt, yt);
+  float xtGeYt = isGEq(xt, yt);
 
-    vec2 hex =
-        yLehalfN * (
-             xLeHalfW * vertA +
-             (1.0 - xLeHalfW) * vertB) +
-        yGeN * vertC +
-        (1.0 - yLehalfN) * (1.0 - yGeN) * (
-             xLeHalfW * (
-                xntGeYt * vertA +
-                (1.0 - xntGeYt) * vertC) +
-             (1.0 - xLeHalfW) * (
-                xtGeYt * vertB +
-                (1.0 - xtGeYt) * vertC));
+  vec2 hex = yLehalfN * (xLeHalfW * vertA + (1.0 - xLeHalfW) * vertB) +
+             yGeN * vertC +
+             (1.0 - yLehalfN) * (1.0 - yGeN) *
+                 (xLeHalfW * (xntGeYt * vertA + (1.0 - xntGeYt) * vertC) +
+                  (1.0 - xLeHalfW) * (xtGeYt * vertB + (1.0 - xtGeYt) * vertC));
 
-    if (mod(yidx, 2.0) != 0.0) {
-        hex.y = H - hex.y;
-    }
+  if (mod(yidx, 2.0) != 0.0) {
+    hex.y = H - hex.y;
+  }
 
-   hex += o;
+  hex += o;
 
-   return hex;
+  return hex;
 }
-
-
 
 vec2 t_coords;
 
@@ -401,6 +392,26 @@ void blur() {
 }
 
 
+/// modulefn: checkerfill
+/// moduletag: space
+
+uniform int u_checkerfill_size; /// { "start": 1, "end": 100, "default": 5 }
+
+void checkerfill() {
+    vec2 coords = t_coords.xy / u_dimensions;
+    ivec2 ic = ivec2(coords);
+
+    int m = 0;
+    if ((ic.x / u_checkerfill_size) % 2 == 0)
+        m += 1;
+    if ((ic.y / u_checkerfill_size) % 2 == 0)
+        m += 1;
+    m = m % 2;
+
+    color_out = vec4(float(m) * vec3(1.), 1.);
+}
+
+
 /// modulefn: chromakey
 /// moduletag: channels
 
@@ -412,6 +423,117 @@ void chromakey() {
     vec2 coords = u_tex_dimensions * t_coords.xy / u_dimensions;
     if (length(color_out.rgb - u_chromakey_key) <= u_chromakey_strength)
         color_out.xyz = texelFetch(u_chromakey_map, ivec2(coords), 0).rgb;
+}
+
+
+/// modulefn: circle_packing
+/// moduletag: color
+
+#define OPCODE_SELECT_CIRCLES 1
+#define OPCODE_RENDER 2
+
+uniform float u_cp_radius_factor; /// { "start": 1, "end": 10, "default": 5 }
+// make sel thresh a fn of radius?
+uniform float u_cp_selection_threshold; /// { "start": 0, "end": 1, "default": 0.25 }
+uniform int u_cp_max_radius; /// { "start": 1, "end": 100, "default": 8 }
+
+uniform sampler2D u_cp_data_texture; /// none
+uniform int u_cp_opcode; /// none
+
+vec4 circle_packing_getImgPx(vec2 coords_) {
+  // vec2 coords = vec2(coords_);
+  // coords *= vec2(u_cp_in_dimensions) / vec2(u_dimensions);
+  // coords.x = float(u_cp_in_dimensions.x) - coords.x;
+  return texelFetch(u_texture, ivec2(coords_), 0);
+}
+
+float circle_packing_getRadius(vec2 coords_) {
+  vec4 color = circle_packing_getImgPx(coords_);
+  float gray_value = 0.3 * color.r + 0.59 * color.g + 0.11 * color.b;
+  float radius = ceil(exp(gray_value * u_cp_radius_factor) /
+                      exp(u_cp_radius_factor) * float(u_cp_max_radius));
+  return radius + 1.0;
+}
+
+void circle_packing() {
+  vec2 coords = gl_FragCoord.xy;
+  switch (u_cp_opcode) {
+  case OPCODE_SELECT_CIRCLES: {
+    ivec2 icoords = ivec2(coords);
+
+    vec4 random_state_local = texelFetch(u_cp_data_texture, icoords, 0);
+    float radius_local = circle_packing_getRadius(coords);
+
+    bool circle_is_active = random_state_local.a > u_cp_selection_threshold;
+    if (circle_is_active) {
+      // find if there are higher priority circles we belong to
+      for (int ix = -1 * 2 * u_cp_max_radius; ix <= 2 * u_cp_max_radius; ix++) {
+        for (int iy = -1 * 2 * u_cp_max_radius; iy <= 2 * u_cp_max_radius;
+             iy++) {
+          ivec2 pcoords = icoords + ivec2(ix, iy);
+          vec4 random_state_remote =
+              texelFetch(u_cp_data_texture, pcoords, 0);
+          if (ix == 0 && iy == 0) {
+            continue;
+          }
+          if (random_state_remote.a > u_cp_selection_threshold) {
+            float radius = circle_packing_getRadius(vec2(pcoords));
+            float dist = length(vec2(ix, iy));
+            if (dist < (radius + radius_local)) {
+              if (random_state_remote.a > random_state_local.a) {
+                circle_is_active = false;
+                break;
+              }
+            }
+          }
+        }
+        if (!circle_is_active) {
+          break;
+        }
+      }
+    }
+
+    color_out.r = radius_local;
+    color_out.g = circle_is_active ? 1.0 : 0.0;
+    color_out.a = 1.0;
+    break;
+  }
+  case OPCODE_RENDER: {
+    ivec2 icoords = ivec2(t_coords.x, t_coords.y);//float(u_dimensions.y) - t_coords.y);
+
+    bool found = false;
+    for (int ix = -1 * u_cp_max_radius; ix <= u_cp_max_radius; ix++) {
+      for (int iy = -1 * u_cp_max_radius; iy <= u_cp_max_radius; iy++) {
+        ivec2 pcoords = icoords + ivec2(ix, iy);
+        vec4 selection_state = texelFetch(u_cp_data_texture, pcoords, 0);
+        float dist = length(vec2(ix, iy));
+        float radius = circle_packing_getRadius(vec2(pcoords));
+        if (selection_state.g > 0.0 && dist <= (selection_state.r + 0.5)) {
+          if (abs(dist - selection_state.r) <= 1.5) {
+            vec4 color = circle_packing_getImgPx(vec2(pcoords));
+            color_out.rgb = color.rgb - vec3(0.05, 0.05, 0.05);
+            found = true;
+          }
+          break;
+        }
+      }
+      if (found) {
+        break;
+      }
+    }
+
+    if (!found) {
+      color_out.r = 1.;
+      color_out.g = 1.;
+      color_out.b = 1.;
+    }
+    color_out.a = 1.0;
+    break;
+  }
+  default: {
+    break;
+  }
+  }
 }
 
 
@@ -466,26 +588,6 @@ uniform sampler2D u_copy_map; /// channel
 void copy() {
     vec2 coords = u_tex_dimensions * t_coords.xy / u_dimensions;
     color_out.xyz += texelFetch(u_copy_map, ivec2(coords), 0).rgb;
-}
-
-
-/// modulefn: checkerfill
-/// moduletag: space
-
-uniform int u_checkerfill_size; /// { "start": 1, "end": 100, "default": 5 }
-
-void checkerfill() {
-    vec2 coords = t_coords.xy / u_dimensions;
-    ivec2 ic = ivec2(coords);
-
-    int m = 0;
-    if ((ic.x / u_checkerfill_size) % 2 == 0)
-        m += 1;
-    if ((ic.y / u_checkerfill_size) % 2 == 0)
-        m += 1;
-    m = m % 2;
-
-    color_out = vec4(float(m) * vec3(1.), 1.);
 }
 
 
@@ -1282,32 +1384,31 @@ void zoom() {
 
 
 void main() {
-    vec2 coords = gl_FragCoord.xy;
-    vec2 c = coords * u_tex_dimensions / u_dimensions;
-    color_out = vec4(u_feedback * texelFetch(u_texture, ivec2(c), 0).xyz, 1.);
+  vec2 coords = gl_FragCoord.xy;
+  vec2 c = coords * u_tex_dimensions / u_dimensions;
+  color_out = vec4(u_feedback * texelFetch(u_texture, ivec2(c), 0).xyz, 1.);
 
-    t_coords = gl_FragCoord.xy / u_dimensions - vec2(0.5) + u_transform_center;
-    t_coords -= vec2(0.5);
+  t_coords = gl_FragCoord.xy / u_dimensions - vec2(0.5) + u_transform_center;
+  t_coords -= vec2(0.5);
 
-    t_coords /= u_transform_scale;
-    mat2 rot_mat = mat2(
-            cos(u_transform_rotation), sin(u_transform_rotation),
-            -sin(u_transform_rotation), cos(u_transform_rotation));
-    t_coords = rot_mat * t_coords;
+  t_coords /= u_transform_scale;
+  mat2 rot_mat = mat2(cos(u_transform_rotation), sin(u_transform_rotation),
+                      -sin(u_transform_rotation), cos(u_transform_rotation));
+  t_coords = rot_mat * t_coords;
 
-    t_coords += vec2(0.5);
-    t_coords *= u_dimensions;
+  t_coords += vec2(0.5);
+  t_coords *= u_dimensions;
 
-    if (u_constrain_to_transform) {
-        if (t_coords.x < 0. || t_coords.x > u_dimensions.x ||
-                t_coords.y < 0. || t_coords.y > u_dimensions.y) {
-            return;
-        }
+  if (u_constrain_to_transform) {
+    if (t_coords.x < 0. || t_coords.x > u_dimensions.x || t_coords.y < 0. ||
+        t_coords.y > u_dimensions.y) {
+      return;
     }
+  }
 
-    switch(u_function) {
-    case FN_RENDER:
-        break;
+  switch (u_function) {
+  case FN_RENDER:
+    break;
 case 1:
     bitfield();
     break;
@@ -1321,118 +1422,123 @@ case 4:
     chromakey();
     break;
 case 5:
-    composite();
+    circle_packing();
     break;
 case 6:
-    condzoom();
+    composite();
     break;
 case 7:
-    copy();
+    condzoom();
     break;
 case 8:
-    enhance();
+    copy();
     break;
 case 9:
-    fourierdraw();
+    enhance();
     break;
 case 10:
-    gamma_correct();
+    fourierdraw();
     break;
 case 11:
-    greyscale();
+    gamma_correct();
     break;
 case 12:
-    halftone();
+    greyscale();
     break;
 case 13:
-    hexswirl();
+    halftone();
     break;
 case 14:
-    hue_shift();
+    hexswirl();
     break;
 case 15:
-    invert_color();
+    hue_shift();
     break;
 case 16:
-    invert_phase();
+    invert_color();
     break;
 case 17:
-    multiply();
+    invert_phase();
     break;
 case 18:
-    noise();
+    multiply();
     break;
 case 19:
-    offset();
+    noise();
     break;
 case 20:
-    oscillator();
+    offset();
     break;
 case 21:
-    picture();
+    oscillator();
     break;
 case 22:
-    pixelate();
+    picture();
     break;
 case 23:
-    polygon();
+    pixelate();
     break;
 case 24:
-    radial();
+    polygon();
     break;
 case 25:
-    recolor();
+    radial();
     break;
 case 26:
-    reduce_colors();
+    recolor();
     break;
 case 27:
-    reflector();
+    reduce_colors();
     break;
 case 28:
-    ripple();
+    reflector();
     break;
 case 29:
-    rotate();
+    ripple();
     break;
 case 30:
-    superformula();
+    rotate();
     break;
 case 31:
-    swirl();
+    superformula();
     break;
 case 32:
-    threshold();
+    swirl();
     break;
 case 33:
-    tile();
+    threshold();
     break;
 case 34:
-    voronoi();
+    tile();
     break;
 case 35:
-    voronoiswirl();
+    voronoi();
     break;
 case 36:
-    waveify();
+    voronoiswirl();
     break;
 case 37:
-    wavy();
+    waveify();
     break;
 case 38:
-    webcam();
+    wavy();
     break;
 case 39:
+    webcam();
+    break;
+case 40:
     zoom();
     break;
 
-    default:
-        // shouldn't happen
-        color_out = vec4(1., 0., 1., 1.);
-        break;
-    }
+  default:
+    // shouldn't happen
+    color_out = vec4(1., 0., 1., 1.);
+    break;
+  }
 
-   color_out = clamp(color_out, -1., 1.);
+  if (!u_no_clamp) {
+    color_out = clamp(color_out, -1., 1.);
+  }
 }
 `;
 // ---------- END build/synth.frag.js ------
@@ -2723,6 +2829,11 @@ class SynthFunction {
     constructor(feedback) {
         this.feedback = feedback;
     }
+
+    // By redefining this, elements can define an alternate render path
+    custom_render(gl, programInfo, fbs) {
+        return false;
+    }
 }
 
 const globalCounters = {};
@@ -2940,9 +3051,14 @@ class SynthElementBase extends SynthStageBase {
             this.constrain_el.load(data.args.constrain);
     }
 
+    // By redefining this elements with a custom render path can add addition
+    // step logic
+    custom_step(time, synth) { }
+
     step(time, synth) {
         for (let arg of Object.keys(this.args))
             this.args[arg].step(time, synth);
+        this.custom_step(time, synth);
     }
 }
 
@@ -3011,7 +3127,7 @@ this.params.bf_destructive = bf_destructive;
 
             get_args() {
                 return {
-                    bf_fg_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,1,1]),bf_bg_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [0,0,0]),bf_offset: new VecEntry(2, ["x","y"], [[-1, 1],[-1, 1],], [0,0]),bf_operator_a: new FloatBar([0,100], 9),bf_operator_b: new FloatBar([0,100], 4),bf_destructive: new BoolEntry(false)
+                    bf_fg_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,1,1]), bf_bg_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [0,0,0]), bf_offset: new VecEntry(2, ["x","y"], [[-1, 1],[-1, 1],], [0,0]), bf_operator_a: new FloatBar([0,100], 9), bf_operator_b: new FloatBar([0,100], 4), bf_destructive: new BoolEntry(false)
                 }
             }
         }
@@ -3039,7 +3155,7 @@ this.params.blur_stride_y = blur_stride_y;
 
             get_args() {
                 return {
-                    blur_stride_x: new IntEntry([1,100], 1),blur_stride_y: new IntEntry([1,100], 1)
+                    blur_stride_x: new IntEntry([1,100], 1), blur_stride_y: new IntEntry([1,100], 1)
                 }
             }
         }
@@ -3095,13 +3211,44 @@ this.params.chromakey_map = chromakey_map;
 
             get_args() {
                 return {
-                    chromakey_key: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [0,1,0]),chromakey_strength: new FloatBar([0,2], 0.25),chromakey_map: new ChannelSelect(this.synth)
+                    chromakey_key: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [0,1,0]), chromakey_strength: new FloatBar([0,2], 0.25), chromakey_map: new ChannelSelect(this.synth)
                 }
             }
         }
         defineEl('synth-chromakey', ChromakeyElement);
-        class Composite extends SynthFunction {
+        class CirclePacking extends SynthFunction {
             id = 5
+            params = {}
+
+            constructor(cp_radius_factor, cp_selection_threshold, cp_max_radius, cp_data_texture, cp_opcode, feedback) {
+                super(feedback || 0);
+                this.params.cp_radius_factor = cp_radius_factor;
+this.params.cp_selection_threshold = cp_selection_threshold;
+this.params.cp_max_radius = cp_max_radius;
+this.params.cp_data_texture = cp_data_texture;
+this.params.cp_opcode = cp_opcode;
+
+            }
+        }
+
+        class CirclePackingElement extends SynthElementBase {
+            get_title() {
+                return "CirclePacking";
+            }
+
+            get_fn() {
+                return CirclePacking;
+            }
+
+            get_args() {
+                return {
+                    cp_radius_factor: new FloatBar([1,10], 5), cp_selection_threshold: new FloatBar([0,1], 0.25), cp_max_radius: new IntEntry([1,100], 8)
+                }
+            }
+        }
+        defineEl('synth-circlepacking', CirclePackingElement);
+        class Composite extends SynthFunction {
+            id = 6
             params = {}
 
             constructor(composite_map_1, composite_map_2, feedback) {
@@ -3123,13 +3270,13 @@ this.params.composite_map_2 = composite_map_2;
 
             get_args() {
                 return {
-                    composite_map_1: new ChannelSelect(this.synth),composite_map_2: new ChannelSelect(this.synth)
+                    composite_map_1: new ChannelSelect(this.synth), composite_map_2: new ChannelSelect(this.synth)
                 }
             }
         }
         defineEl('synth-composite', CompositeElement);
         class Condzoom extends SynthFunction {
-            id = 6
+            id = 7
             params = {}
 
             constructor(condzoom_strength, condzoom_map, feedback) {
@@ -3151,13 +3298,13 @@ this.params.condzoom_map = condzoom_map;
 
             get_args() {
                 return {
-                    condzoom_strength: new FloatBar([-1,10], 2),condzoom_map: new ChannelSelect(this.synth)
+                    condzoom_strength: new FloatBar([-1,10], 2), condzoom_map: new ChannelSelect(this.synth)
                 }
             }
         }
         defineEl('synth-condzoom', CondzoomElement);
 class Copy extends SynthFunction {
-    id = 7
+    id = 8
     params = {}
 
     constructor(copy_map, feedback) {
@@ -3184,7 +3331,7 @@ class CopyElement extends SynthElementBase {
 }
 defineEl('synth-copy', CopyElement);
 class Enhance extends SynthFunction {
-    id = 8
+    id = 9
     params = {}
 
     constructor(enhance, feedback) {
@@ -3211,7 +3358,7 @@ class EnhanceElement extends SynthElementBase {
 }
 defineEl('synth-enhance', EnhanceElement);
         class Fourierdraw extends SynthFunction {
-            id = 9
+            id = 10
             params = {}
 
             constructor(fd_r, fd_theta, fd_draw_r, fd_color, fd_thickness, fd_smooth_edges, fd_fill, fd_destructive, feedback) {
@@ -3239,13 +3386,13 @@ this.params.fd_destructive = fd_destructive;
 
             get_args() {
                 return {
-                    fd_r: new VecEntry(3, ["1","2","3"], [[-10, 10],[-10, 10],[-10, 10],], [0,0,0]),fd_theta: new VecEntry(3, ["1","2","3"], [[0, 6.283185307179586],[0, 6.283185307179586],[0, 6.283185307179586],], [0,0,0]),fd_draw_r: new FloatBar([0,2], 0.25),fd_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0]),fd_thickness: new FloatBar([0,1], 0.025),fd_smooth_edges: new BoolEntry(true),fd_fill: new BoolEntry(false),fd_destructive: new BoolEntry(false)
+                    fd_r: new VecEntry(3, ["1","2","3"], [[-10, 10],[-10, 10],[-10, 10],], [0,0,0]), fd_theta: new VecEntry(3, ["1","2","3"], [[0, 6.283185307179586],[0, 6.283185307179586],[0, 6.283185307179586],], [0,0,0]), fd_draw_r: new FloatBar([0,2], 0.25), fd_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0]), fd_thickness: new FloatBar([0,1], 0.025), fd_smooth_edges: new BoolEntry(true), fd_fill: new BoolEntry(false), fd_destructive: new BoolEntry(false)
                 }
             }
         }
         defineEl('synth-fourierdraw', FourierdrawElement);
 class GammaCorrect extends SynthFunction {
-    id = 10
+    id = 11
     params = {}
 
     constructor(gamma_correction, feedback) {
@@ -3272,7 +3419,7 @@ class GammaCorrectElement extends SynthElementBase {
 }
 defineEl('synth-gammacorrect', GammaCorrectElement);
 class Greyscale extends SynthFunction {
-    id = 11
+    id = 12
     params = {}
 
     constructor(greyscale_luminance, feedback) {
@@ -3299,7 +3446,7 @@ class GreyscaleElement extends SynthElementBase {
 }
 defineEl('synth-greyscale', GreyscaleElement);
         class Halftone extends SynthFunction {
-            id = 12
+            id = 13
             params = {}
 
             constructor(halftone_factor, halftone_invert, halftone_strength, feedback) {
@@ -3322,13 +3469,13 @@ this.params.halftone_strength = halftone_strength;
 
             get_args() {
                 return {
-                    halftone_factor: new IntEntry([0,500], 10),halftone_invert: new BoolEntry(false),halftone_strength: new FloatBar([0,2], 1)
+                    halftone_factor: new IntEntry([0,500], 10), halftone_invert: new BoolEntry(false), halftone_strength: new FloatBar([0,2], 1)
                 }
             }
         }
         defineEl('synth-halftone', HalftoneElement);
         class Hexswirl extends SynthFunction {
-            id = 13
+            id = 14
             params = {}
 
             constructor(hexswirl_factor, hexswirl_size, feedback) {
@@ -3350,13 +3497,13 @@ this.params.hexswirl_size = hexswirl_size;
 
             get_args() {
                 return {
-                    hexswirl_factor: new FloatBar([0,6.283185307179586], 0),hexswirl_size: new FloatBar([0,100.0], 5)
+                    hexswirl_factor: new FloatBar([0,6.283185307179586], 0), hexswirl_size: new FloatBar([0,100.0], 5)
                 }
             }
         }
         defineEl('synth-hexswirl', HexswirlElement);
         class HueShift extends SynthFunction {
-            id = 14
+            id = 15
             params = {}
 
             constructor(hue_shift, saturate_shift, feedback) {
@@ -3378,13 +3525,13 @@ this.params.saturate_shift = saturate_shift;
 
             get_args() {
                 return {
-                    hue_shift: new FloatBar([0,360], 180),saturate_shift: new FloatBar([0,1], 0)
+                    hue_shift: new FloatBar([0,360], 180), saturate_shift: new FloatBar([0,1], 0)
                 }
             }
         }
         defineEl('synth-hueshift', HueShiftElement);
 class InvertColor extends SynthFunction {
-    id = 15
+    id = 16
     params = {}
 
     constructor(feedback) {
@@ -3410,7 +3557,7 @@ class InvertColorElement extends SynthElementBase {
 }
 defineEl('synth-invertcolor', InvertColorElement);
 class InvertPhase extends SynthFunction {
-    id = 16
+    id = 17
     params = {}
 
     constructor(feedback) {
@@ -3436,7 +3583,7 @@ class InvertPhaseElement extends SynthElementBase {
 }
 defineEl('synth-invertphase', InvertPhaseElement);
 class Multiply extends SynthFunction {
-    id = 17
+    id = 18
     params = {}
 
     constructor(multiply_map, feedback) {
@@ -3463,7 +3610,7 @@ class MultiplyElement extends SynthElementBase {
 }
 defineEl('synth-multiply', MultiplyElement);
         class Noise extends SynthFunction {
-            id = 18
+            id = 19
             params = {}
 
             constructor(noise_r, noise_g, noise_b, feedback) {
@@ -3486,13 +3633,13 @@ this.params.noise_b = noise_b;
 
             get_args() {
                 return {
-                    noise_r: new FloatBar([0,10000], 0),noise_g: new FloatBar([0,10000], 0),noise_b: new FloatBar([0,10000], 0)
+                    noise_r: new FloatBar([0,10000], 0), noise_g: new FloatBar([0,10000], 0), noise_b: new FloatBar([0,10000], 0)
                 }
             }
         }
         defineEl('synth-noise', NoiseElement);
         class Offset extends SynthFunction {
-            id = 19
+            id = 20
             params = {}
 
             constructor(offsets_x, offsets_y, feedback) {
@@ -3514,13 +3661,13 @@ this.params.offsets_y = offsets_y;
 
             get_args() {
                 return {
-                    offsets_x: new VecEntry(3, ["r","g","b"], [[-1, 1],[-1, 1],[-1, 1],], [0,0,0]),offsets_y: new VecEntry(3, ["r","g","b"], [[-1, 1],[-1, 1],[-1, 1],], [0,0,0])
+                    offsets_x: new VecEntry(3, ["r","g","b"], [[-1, 1],[-1, 1],[-1, 1],], [0,0,0]), offsets_y: new VecEntry(3, ["r","g","b"], [[-1, 1],[-1, 1],[-1, 1],], [0,0,0])
                 }
             }
         }
         defineEl('synth-offset', OffsetElement);
         class Oscillator extends SynthFunction {
-            id = 20
+            id = 21
             params = {}
 
             constructor(osc_f, osc_c, osc_color, feedback) {
@@ -3543,13 +3690,13 @@ this.params.osc_color = osc_color;
 
             get_args() {
                 return {
-                    osc_f: new VecEntry(2, ["x","y"], [[0, 1],[0, 1],], [0.25,0]),osc_c: new FloatBar([0,6.283185307179586], 0),osc_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0])
+                    osc_f: new VecEntry(2, ["x","y"], [[0, 1],[0, 1],], [0.25,0]), osc_c: new FloatBar([0,6.283185307179586], 0), osc_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0])
                 }
             }
         }
         defineEl('synth-oscillator', OscillatorElement);
         class Picture extends SynthFunction {
-            id = 21
+            id = 22
             params = {}
 
             constructor(picture_texture, picture_dimensions, feedback) {
@@ -3571,13 +3718,13 @@ this.params.picture_dimensions = picture_dimensions;
 
             get_args() {
                 return {
-                    picture_texture: new Picture_picture_texture(this.synth),picture_dimensions: new Picture_picture_dimensions(this.synth)
+                    picture_texture: new Picture_picture_texture(this.synth), picture_dimensions: new Picture_picture_dimensions(this.synth)
                 }
             }
         }
         defineEl('synth-picture', PictureElement);
 class Pixelate extends SynthFunction {
-    id = 22
+    id = 23
     params = {}
 
     constructor(pixelate_factor, feedback) {
@@ -3604,7 +3751,7 @@ class PixelateElement extends SynthElementBase {
 }
 defineEl('synth-pixelate', PixelateElement);
         class Polygon extends SynthFunction {
-            id = 23
+            id = 24
             params = {}
 
             constructor(polygon_color, polygon_n, polygon_r, polygon_thickness, polygon_smooth_edges, polygon_fill, polygon_destructive, feedback) {
@@ -3631,13 +3778,13 @@ this.params.polygon_destructive = polygon_destructive;
 
             get_args() {
                 return {
-                    polygon_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0]),polygon_n: new IntEntry([3,100], 4),polygon_r: new FloatBar([0,1], 0.49999),polygon_thickness: new FloatBar([0,1], 0.025),polygon_smooth_edges: new BoolEntry(true),polygon_fill: new BoolEntry(false),polygon_destructive: new BoolEntry(false)
+                    polygon_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0]), polygon_n: new IntEntry([3,100], 4), polygon_r: new FloatBar([0,1], 0.49999), polygon_thickness: new FloatBar([0,1], 0.025), polygon_smooth_edges: new BoolEntry(true), polygon_fill: new BoolEntry(false), polygon_destructive: new BoolEntry(false)
                 }
             }
         }
         defineEl('synth-polygon', PolygonElement);
         class Radial extends SynthFunction {
-            id = 24
+            id = 25
             params = {}
 
             constructor(radial_strength, radial_center, feedback) {
@@ -3659,13 +3806,13 @@ this.params.radial_center = radial_center;
 
             get_args() {
                 return {
-                    radial_strength: new FloatBar([0,10], -1),radial_center: new VecEntry(2, ["x","y"], [[0, 1],[0, 1],], [0.5,0.5])
+                    radial_strength: new FloatBar([0,10], -1), radial_center: new VecEntry(2, ["x","y"], [[0, 1],[0, 1],], [0.5,0.5])
                 }
             }
         }
         defineEl('synth-radial', RadialElement);
         class Recolor extends SynthFunction {
-            id = 25
+            id = 26
             params = {}
 
             constructor(recolor_new_r, recolor_new_g, recolor_new_b, feedback) {
@@ -3688,13 +3835,13 @@ this.params.recolor_new_b = recolor_new_b;
 
             get_args() {
                 return {
-                    recolor_new_r: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0]),recolor_new_g: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [0,1,0]),recolor_new_b: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [0,0,1])
+                    recolor_new_r: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0]), recolor_new_g: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [0,1,0]), recolor_new_b: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [0,0,1])
                 }
             }
         }
         defineEl('synth-recolor', RecolorElement);
         class ReduceColors extends SynthFunction {
-            id = 26
+            id = 27
             params = {}
 
             constructor(reduce_colors_data, reduce_colors_count, feedback) {
@@ -3716,13 +3863,13 @@ this.params.reduce_colors_count = reduce_colors_count;
 
             get_args() {
                 return {
-                    reduce_colors_data: new ReduceColors_reduce_colors_data(this.synth),reduce_colors_count: new ReduceColors_reduce_colors_count(this.synth)
+                    reduce_colors_data: new ReduceColors_reduce_colors_data(this.synth), reduce_colors_count: new ReduceColors_reduce_colors_count(this.synth)
                 }
             }
         }
         defineEl('synth-reducecolors', ReduceColorsElement);
         class Reflector extends SynthFunction {
-            id = 27
+            id = 28
             params = {}
 
             constructor(reflect_theta, reflect_y, reflect_x, feedback) {
@@ -3745,13 +3892,13 @@ this.params.reflect_x = reflect_x;
 
             get_args() {
                 return {
-                    reflect_theta: new FloatBar([0,6.283185307179586], 1.5707963267948966),reflect_y: new FloatBar([-1,1], 0),reflect_x: new FloatBar([-1,1], 0)
+                    reflect_theta: new FloatBar([0,6.283185307179586], 1.5707963267948966), reflect_y: new FloatBar([-1,1], 0), reflect_x: new FloatBar([-1,1], 0)
                 }
             }
         }
         defineEl('synth-reflector', ReflectorElement);
         class Ripple extends SynthFunction {
-            id = 28
+            id = 29
             params = {}
 
             constructor(ripple_freq, ripple_c, ripple_strength, ripple_center, feedback) {
@@ -3775,13 +3922,13 @@ this.params.ripple_center = ripple_center;
 
             get_args() {
                 return {
-                    ripple_freq: new FloatBar([0,100], 1),ripple_c: new FloatBar([0,6.283185307179586], 0),ripple_strength: new FloatBar([-1,10], 2),ripple_center: new VecEntry(2, ["x","y"], [[0, 1],[0, 1],], [0.5,0.5])
+                    ripple_freq: new FloatBar([0,100], 1), ripple_c: new FloatBar([0,6.283185307179586], 0), ripple_strength: new FloatBar([-1,10], 2), ripple_center: new VecEntry(2, ["x","y"], [[0, 1],[0, 1],], [0.5,0.5])
                 }
             }
         }
         defineEl('synth-ripple', RippleElement);
 class Rotate extends SynthFunction {
-    id = 29
+    id = 30
     params = {}
 
     constructor(rotation, feedback) {
@@ -3808,7 +3955,7 @@ class RotateElement extends SynthElementBase {
 }
 defineEl('synth-rotate', RotateElement);
         class Superformula extends SynthFunction {
-            id = 30
+            id = 31
             params = {}
 
             constructor(sf_color, sf_m, sf_n, sf_thickness, sf_smooth_edges, sf_fill, sf_destructive, feedback) {
@@ -3835,13 +3982,13 @@ this.params.sf_destructive = sf_destructive;
 
             get_args() {
                 return {
-                    sf_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0]),sf_m: new FloatBar([1,10], 1),sf_n: new VecEntry(3, ["n1","n2","n3"], [[0, 20],[0, 20],[0, 20],], [20,20,20]),sf_thickness: new FloatBar([0,1], 0.5),sf_smooth_edges: new BoolEntry(true),sf_fill: new BoolEntry(false),sf_destructive: new BoolEntry(false)
+                    sf_color: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [1,0,0]), sf_m: new FloatBar([1,10], 1), sf_n: new VecEntry(3, ["n1","n2","n3"], [[0, 20],[0, 20],[0, 20],], [20,20,20]), sf_thickness: new FloatBar([0,1], 0.5), sf_smooth_edges: new BoolEntry(true), sf_fill: new BoolEntry(false), sf_destructive: new BoolEntry(false)
                 }
             }
         }
         defineEl('synth-superformula', SuperformulaElement);
 class Swirl extends SynthFunction {
-    id = 31
+    id = 32
     params = {}
 
     constructor(factor, feedback) {
@@ -3868,7 +4015,7 @@ class SwirlElement extends SynthElementBase {
 }
 defineEl('synth-swirl', SwirlElement);
         class Threshold extends SynthFunction {
-            id = 32
+            id = 33
             params = {}
 
             constructor(threshold_high_r, threshold_high_g, threshold_high_b, thresholds, feedback) {
@@ -3892,13 +4039,13 @@ this.params.thresholds = thresholds;
 
             get_args() {
                 return {
-                    threshold_high_r: new BoolEntry(true),threshold_high_g: new BoolEntry(true),threshold_high_b: new BoolEntry(true),thresholds: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [0,0,0])
+                    threshold_high_r: new BoolEntry(true), threshold_high_g: new BoolEntry(true), threshold_high_b: new BoolEntry(true), thresholds: new VecEntry(3, ["r","g","b"], [[0, 1],[0, 1],[0, 1],], [0,0,0])
                 }
             }
         }
         defineEl('synth-threshold', ThresholdElement);
         class Tile extends SynthFunction {
-            id = 33
+            id = 34
             params = {}
 
             constructor(tile_x, tile_y, feedback) {
@@ -3920,13 +4067,13 @@ this.params.tile_y = tile_y;
 
             get_args() {
                 return {
-                    tile_x: new IntEntry([1,100], 1),tile_y: new IntEntry([1,100], 1)
+                    tile_x: new IntEntry([1,100], 1), tile_y: new IntEntry([1,100], 1)
                 }
             }
         }
         defineEl('synth-tile', TileElement);
         class Voronoi extends SynthFunction {
-            id = 34
+            id = 35
             params = {}
 
             constructor(voronoi_data, voronoi_count, feedback) {
@@ -3948,13 +4095,13 @@ this.params.voronoi_count = voronoi_count;
 
             get_args() {
                 return {
-                    voronoi_data: new Voronoi_voronoi_data(this.synth),voronoi_count: new Voronoi_voronoi_count(this.synth)
+                    voronoi_data: new Voronoi_voronoi_data(this.synth), voronoi_count: new Voronoi_voronoi_count(this.synth)
                 }
             }
         }
         defineEl('synth-voronoi', VoronoiElement);
         class Voronoiswirl extends SynthFunction {
-            id = 35
+            id = 36
             params = {}
 
             constructor(voronoiswirl_data, voronoiswirl_count, voronoiswirl_factor, feedback) {
@@ -3977,13 +4124,13 @@ this.params.voronoiswirl_factor = voronoiswirl_factor;
 
             get_args() {
                 return {
-                    voronoiswirl_data: new Voronoiswirl_voronoiswirl_data(this.synth),voronoiswirl_count: new Voronoiswirl_voronoiswirl_count(this.synth),voronoiswirl_factor: new FloatBar([0,6.283185307179586], 0)
+                    voronoiswirl_data: new Voronoiswirl_voronoiswirl_data(this.synth), voronoiswirl_count: new Voronoiswirl_voronoiswirl_count(this.synth), voronoiswirl_factor: new FloatBar([0,6.283185307179586], 0)
                 }
             }
         }
         defineEl('synth-voronoiswirl', VoronoiswirlElement);
         class Waveify extends SynthFunction {
-            id = 36
+            id = 37
             params = {}
 
             constructor(waveify_a, waveify_f, waveify_c, feedback) {
@@ -4006,13 +4153,13 @@ this.params.waveify_c = waveify_c;
 
             get_args() {
                 return {
-                    waveify_a: new VecEntry(3, ["r","g","b"], [[0, 10],[0, 10],[0, 10],], [1,1,1]),waveify_f: new VecEntry(3, ["r","g","b"], [[0, 1000],[0, 1000],[0, 1000],], [100,100,100]),waveify_c: new VecEntry(3, ["r","g","b"], [[0, 6.283185307179586],[0, 6.283185307179586],[0, 6.283185307179586],], [0,0,0])
+                    waveify_a: new VecEntry(3, ["r","g","b"], [[0, 10],[0, 10],[0, 10],], [1,1,1]), waveify_f: new VecEntry(3, ["r","g","b"], [[0, 1000],[0, 1000],[0, 1000],], [100,100,100]), waveify_c: new VecEntry(3, ["r","g","b"], [[0, 6.283185307179586],[0, 6.283185307179586],[0, 6.283185307179586],], [0,0,0])
                 }
             }
         }
         defineEl('synth-waveify', WaveifyElement);
         class Wavy extends SynthFunction {
-            id = 37
+            id = 38
             params = {}
 
             constructor(wavy_freq_x, wavy_c_x, wavy_strength_x, wavy_freq_y, wavy_c_y, wavy_strength_y, feedback) {
@@ -4038,13 +4185,13 @@ this.params.wavy_strength_y = wavy_strength_y;
 
             get_args() {
                 return {
-                    wavy_freq_x: new FloatBar([0,100], 1),wavy_c_x: new FloatBar([0,6.283185307179586], 0),wavy_strength_x: new FloatBar([0,100], 1),wavy_freq_y: new FloatBar([0,100], 1),wavy_c_y: new FloatBar([0,6.283185307179586], 0),wavy_strength_y: new FloatBar([0,100], 1)
+                    wavy_freq_x: new FloatBar([0,100], 1), wavy_c_x: new FloatBar([0,6.283185307179586], 0), wavy_strength_x: new FloatBar([0,100], 1), wavy_freq_y: new FloatBar([0,100], 1), wavy_c_y: new FloatBar([0,6.283185307179586], 0), wavy_strength_y: new FloatBar([0,100], 1)
                 }
             }
         }
         defineEl('synth-wavy', WavyElement);
         class Webcam extends SynthFunction {
-            id = 38
+            id = 39
             params = {}
 
             constructor(webcam_texture, webcam_dimensions, webcam_invert_x, webcam_invert_y, feedback) {
@@ -4068,13 +4215,13 @@ this.params.webcam_invert_y = webcam_invert_y;
 
             get_args() {
                 return {
-                    webcam_texture: new Webcam_webcam_texture(this.synth),webcam_dimensions: new Webcam_webcam_dimensions(this.synth),webcam_invert_x: new BoolEntry(true),webcam_invert_y: new BoolEntry(true)
+                    webcam_texture: new Webcam_webcam_texture(this.synth), webcam_dimensions: new Webcam_webcam_dimensions(this.synth), webcam_invert_x: new BoolEntry(true), webcam_invert_y: new BoolEntry(true)
                 }
             }
         }
         defineEl('synth-webcam', WebcamElement);
         class Zoom extends SynthFunction {
-            id = 39
+            id = 40
             params = {}
 
             constructor(zoom, zoom_center, feedback) {
@@ -4096,13 +4243,48 @@ this.params.zoom_center = zoom_center;
 
             get_args() {
                 return {
-                    zoom: new FloatBar([0,10], 1),zoom_center: new VecEntry(2, ["x","y"], [[0, 1],[0, 1],], [0.5,0.5])
+                    zoom: new FloatBar([0,10], 1), zoom_center: new VecEntry(2, ["x","y"], [[0, 1],[0, 1],], [0.5,0.5])
                 }
             }
         }
         defineEl('synth-zoom', ZoomElement);
-const MODULE_IDS = {"bitfield": {class: "BitfieldElement", tag: "generator"},"blur": {class: "BlurElement", tag: "space"},"checkerfill": {class: "CheckerfillElement", tag: "space"},"chromakey": {class: "ChromakeyElement", tag: "channels"},"composite": {class: "CompositeElement", tag: "channels"},"condzoom": {class: "CondzoomElement", tag: "channels"},"copy": {class: "CopyElement", tag: "channels"},"enhance": {class: "EnhanceElement", tag: "color"},"fourierdraw": {class: "FourierdrawElement", tag: "generator"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"greyscale": {class: "GreyscaleElement", tag: "color"},"halftone": {class: "HalftoneElement", tag: "space"},"hexswirl": {class: "HexswirlElement", tag: "space"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"invert phase": {class: "InvertPhaseElement", tag: "color"},"multiply": {class: "MultiplyElement", tag: "channels"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"polygon": {class: "PolygonElement", tag: "generator"},"radial": {class: "RadialElement", tag: "color"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"ripple": {class: "RippleElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"voronoi": {class: "VoronoiElement", tag: "color"},"voronoiswirl": {class: "VoronoiswirlElement", tag: "space"},"waveify": {class: "WaveifyElement", tag: "color"},"wavy": {class: "WavyElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
+const MODULE_IDS = {"bitfield": {class: "BitfieldElement", tag: "generator"},"blur": {class: "BlurElement", tag: "space"},"checkerfill": {class: "CheckerfillElement", tag: "space"},"chromakey": {class: "ChromakeyElement", tag: "channels"},"circle packing": {class: "CirclePackingElement", tag: "color"},"composite": {class: "CompositeElement", tag: "channels"},"condzoom": {class: "CondzoomElement", tag: "channels"},"copy": {class: "CopyElement", tag: "channels"},"enhance": {class: "EnhanceElement", tag: "color"},"fourierdraw": {class: "FourierdrawElement", tag: "generator"},"gamma correct": {class: "GammaCorrectElement", tag: "color"},"greyscale": {class: "GreyscaleElement", tag: "color"},"halftone": {class: "HalftoneElement", tag: "space"},"hexswirl": {class: "HexswirlElement", tag: "space"},"hue shift": {class: "HueShiftElement", tag: "color"},"invert color": {class: "InvertColorElement", tag: "color"},"invert phase": {class: "InvertPhaseElement", tag: "color"},"multiply": {class: "MultiplyElement", tag: "channels"},"noise": {class: "NoiseElement", tag: "generator"},"offset": {class: "OffsetElement", tag: "color"},"oscillator": {class: "OscillatorElement", tag: "generator"},"picture": {class: "PictureElement", tag: "generator"},"pixelate": {class: "PixelateElement", tag: "space"},"polygon": {class: "PolygonElement", tag: "generator"},"radial": {class: "RadialElement", tag: "color"},"recolor": {class: "RecolorElement", tag: "color"},"reduce colors": {class: "ReduceColorsElement", tag: "color"},"reflector": {class: "ReflectorElement", tag: "space"},"ripple": {class: "RippleElement", tag: "space"},"rotate": {class: "RotateElement", tag: "space"},"superformula": {class: "SuperformulaElement", tag: "generator"},"swirl": {class: "SwirlElement", tag: "space"},"threshold": {class: "ThresholdElement", tag: "color"},"tile": {class: "TileElement", tag: "space"},"voronoi": {class: "VoronoiElement", tag: "color"},"voronoiswirl": {class: "VoronoiswirlElement", tag: "space"},"waveify": {class: "WaveifyElement", tag: "color"},"wavy": {class: "WavyElement", tag: "space"},"webcam": {class: "WebcamElement", tag: "generator"},"zoom": {class: "ZoomElement", tag: "space"},}
 // ---------- END build/module_lib.js ------
+
+// ---------- custommodule.js ----------
+CirclePackingElement.prototype.custom_step = function(time, synth) {
+  if (!this.random_buffer) {
+    this.random_buffer = new Float32Array(4 * synth.dimensions[0] * synth.dimensions[1]);
+    this.fn_params.random_buffer = new FrameBufferManager(synth.gl, synth.dimensions);
+
+    this.fn_params.dimensions = synth.dimensions;
+  }
+  for (let i = 0; i < this.random_buffer.length; i++) {
+    this.random_buffer[i] = Math.random();
+  }
+  updateTexture(synth.gl, synth.dimensions, this.fn_params.random_buffer.src(), this.random_buffer);
+}
+
+CirclePacking.prototype.custom_render = function(gl, programInfo, params, fbs) {
+  twgl.setUniforms(programInfo, {
+    u_cp_data_texture: this.random_buffer.src(),
+    u_cp_opcode: 1,
+    u_no_clamp: true,
+  });
+  this.random_buffer.bind_dst();
+  render(gl);
+
+  twgl.setUniforms(programInfo, {
+    u_cp_data_texture: this.random_buffer.dst(),
+    u_cp_opcode: 2,
+    u_no_clamp: false,
+  });
+  fbs.bind_dst();
+  render(gl);
+
+  return true;
+}
+// ---------- END custommodule.js ------
 
 // ---------- meta_module.js ----------
 class ModuleElement extends SynthStageBase {
@@ -5036,7 +5218,6 @@ class Synth {
                 return;
             }
 
-            fbs.bind_dst();
             const params = {
                 u_dimensions: this.dimensions,
                 u_tex_dimensions: this.dimensions,
@@ -5047,6 +5228,7 @@ class Synth {
                 u_function: fn_params.id,
                 u_feedback: fn_params.feedback,
                 u_constrain_to_transform: fn_params.constrain,
+                u_no_clamp: false,
             };
             for (let key of Object.keys(fn_params.params)) {
                 let value = fn_params.params[key];
@@ -5056,7 +5238,14 @@ class Synth {
             }
 
             twgl.setUniforms(this.programInfo, params);
-            render(this.gl);
+
+            // If the function defines a custom rendering function, do that
+            // instead
+            if (!fn_params.custom_render(this.gl, this.programInfo, params, fbs)) {
+              // default render path
+              fbs.bind_dst();
+              render(this.gl);
+            }
 
             // clear channel textures
             for (let key of Object.keys(fn_params.params)) {

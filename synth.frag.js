@@ -11,7 +11,7 @@ precision mediump int;
 #define PI 3.1415926538
 #define GOLDEN_RATIO 1.6180339887
 
-#define FN_RENDER    0
+#define FN_RENDER 0
 
 uniform vec2 u_dimensions;
 uniform vec2 u_tex_dimensions;
@@ -24,130 +24,121 @@ uniform int u_function;
 uniform float u_feedback;
 uniform bool u_constrain_to_transform;
 
+uniform bool u_no_clamp;
+
 out vec4 color_out;
 
 vec3 hsv_to_rgb(vec3 hsv) {
-    float h = hsv.r;
-    while (h > 360.)
-        h -= 360.;
+  float h = hsv.r;
+  while (h > 360.)
+    h -= 360.;
 
-    float s = hsv.g;
-    float v = hsv.b;
+  float s = hsv.g;
+  float v = hsv.b;
 
-    float c = v * s;
-    float x = c * float(1 - abs(int(h / 60.) % 2 - 1));
-    float m = v - c;
+  float c = v * s;
+  float x = c * float(1 - abs(int(h / 60.) % 2 - 1));
+  float m = v - c;
 
-    vec3 rgb = vec3(0.);
-    if (h < 60.)
-        rgb = vec3(c, x, 0.);
-    else if (h < 120.)
-        rgb = vec3(x, c, 0.);
-    else if (h < 180.)
-        rgb = vec3(0., c, x);
-    else if (h < 240.)
-        rgb = vec3(0., x, c);
-    else if (h < 300.)
-        rgb = vec3(x, 0., c);
-    else
-        rgb = vec3(c, 0., x);
+  vec3 rgb = vec3(0.);
+  if (h < 60.)
+    rgb = vec3(c, x, 0.);
+  else if (h < 120.)
+    rgb = vec3(x, c, 0.);
+  else if (h < 180.)
+    rgb = vec3(0., c, x);
+  else if (h < 240.)
+    rgb = vec3(0., x, c);
+  else if (h < 300.)
+    rgb = vec3(x, 0., c);
+  else
+    rgb = vec3(c, 0., x);
 
-    rgb += m;
-    return rgb;
+  rgb += m;
+  return rgb;
 }
 
 vec3 rgb_to_hsv(vec3 rgb) {
-    float c_max = max(max(rgb.r, rgb.g), rgb.b);
-    float c_min = min(min(rgb.r, rgb.g), rgb.b);
-    float delta = c_max - c_min;
-    float h = 0.;
-    if (delta == 0.)
-        h = 0.;
-    else if (c_max == rgb.r)
-        h = 60. * float(int((rgb.g - rgb.b) / delta) % 6);
-    else if (c_max == rgb.g)
-        h = 60. * (((rgb.b - rgb.r) / delta) + 2.);
-    else if (c_max == rgb.b)
-        h = 60. * (((rgb.r - rgb.g) / delta) + 4.);
+  float c_max = max(max(rgb.r, rgb.g), rgb.b);
+  float c_min = min(min(rgb.r, rgb.g), rgb.b);
+  float delta = c_max - c_min;
+  float h = 0.;
+  if (delta == 0.)
+    h = 0.;
+  else if (c_max == rgb.r)
+    h = 60. * float(int((rgb.g - rgb.b) / delta) % 6);
+  else if (c_max == rgb.g)
+    h = 60. * (((rgb.b - rgb.r) / delta) + 2.);
+  else if (c_max == rgb.b)
+    h = 60. * (((rgb.r - rgb.g) / delta) + 4.);
 
-    float s = 0.;
-    if (c_max != 0.)
-        s = delta / c_max;
-    float v = c_max;
+  float s = 0.;
+  if (c_max != 0.)
+    s = delta / c_max;
+  float v = c_max;
 
-    return vec3(h, s, v);
+  return vec3(h, s, v);
 }
 
-float isGEq(float a, float b) {
-    return sign(sign(a - b) + 1.0);
-}
+float isGEq(float a, float b) { return sign(sign(a - b) + 1.0); }
 
 vec2 get_hex_origin(vec2 coords, float hex_size) {
-    float n = max(hex_size, 0.01);
-    float halfn = n / 2.0;
+  float n = max(hex_size, 0.01);
+  float halfn = n / 2.0;
 
-    float sqrt3 = 1.732;
+  float sqrt3 = 1.732;
 
-    float W = sqrt3 * n;
-    float halfW = W/2.0;
+  float W = sqrt3 * n;
+  float halfW = W / 2.0;
 
-    float H = 3.0 * halfn;
+  float H = 3.0 * halfn;
 
-    float xidx = floor(coords.x / W);
-    float yidx = floor(coords.y / H);
+  float xidx = floor(coords.x / W);
+  float yidx = floor(coords.y / H);
 
-    // Get top left corner of bounding square
-    vec2 o = vec2(W * xidx, H * yidx);
+  // Get top left corner of bounding square
+  vec2 o = vec2(W * xidx, H * yidx);
 
-    // transform coordinates to make square begin at origin
-    vec2 t = coords - o;
+  // transform coordinates to make square begin at origin
+  vec2 t = coords - o;
 
-    // Hexagon targets in transformed space
-    vec2 vertA = vec2(0.0, 0.0);
-    vec2 vertB = vec2(W, 0.0);
-    vec2 vertC = vec2(halfW, H);
+  // Hexagon targets in transformed space
+  vec2 vertA = vec2(0.0, 0.0);
+  vec2 vertB = vec2(W, 0.0);
+  vec2 vertC = vec2(halfW, H);
 
-    vec2 vertInvalid = vec2(-1.0, 0.0);
+  vec2 vertInvalid = vec2(-1.0, 0.0);
 
-    // pattern alternates every other row
-    if (mod(yidx, 2.0) != 0.0) {
-        t.y = H - t.y;
-    }
+  // pattern alternates every other row
+  if (mod(yidx, 2.0) != 0.0) {
+    t.y = H - t.y;
+  }
 
-    float xLeHalfW = isGEq(halfW, t.x);
-    float yLehalfN = isGEq(halfn, t.y);
-    float yGeN = isGEq(t.y, n);
+  float xLeHalfW = isGEq(halfW, t.x);
+  float yLehalfN = isGEq(halfn, t.y);
+  float yGeN = isGEq(t.y, n);
 
-    float yt = t.y - halfn;
-    float xt = (t.x - halfW) / sqrt3;
-    float xnt = (halfW - t.x) / sqrt3;
+  float yt = t.y - halfn;
+  float xt = (t.x - halfW) / sqrt3;
+  float xnt = (halfW - t.x) / sqrt3;
 
-    float xntGeYt = isGEq(xnt, yt);
-    float xtGeYt = isGEq(xt, yt);
+  float xntGeYt = isGEq(xnt, yt);
+  float xtGeYt = isGEq(xt, yt);
 
-    vec2 hex =
-        yLehalfN * (
-             xLeHalfW * vertA +
-             (1.0 - xLeHalfW) * vertB) +
-        yGeN * vertC +
-        (1.0 - yLehalfN) * (1.0 - yGeN) * (
-             xLeHalfW * (
-                xntGeYt * vertA +
-                (1.0 - xntGeYt) * vertC) +
-             (1.0 - xLeHalfW) * (
-                xtGeYt * vertB +
-                (1.0 - xtGeYt) * vertC));
+  vec2 hex = yLehalfN * (xLeHalfW * vertA + (1.0 - xLeHalfW) * vertB) +
+             yGeN * vertC +
+             (1.0 - yLehalfN) * (1.0 - yGeN) *
+                 (xLeHalfW * (xntGeYt * vertA + (1.0 - xntGeYt) * vertC) +
+                  (1.0 - xLeHalfW) * (xtGeYt * vertB + (1.0 - xtGeYt) * vertC));
 
-    if (mod(yidx, 2.0) != 0.0) {
-        hex.y = H - hex.y;
-    }
+  if (mod(yidx, 2.0) != 0.0) {
+    hex.y = H - hex.y;
+  }
 
-   hex += o;
+  hex += o;
 
-   return hex;
+  return hex;
 }
-
-
 
 vec2 t_coords;
 
@@ -198,6 +189,26 @@ void blur() {
 }
 
 
+/// modulefn: checkerfill
+/// moduletag: space
+
+uniform int u_checkerfill_size; /// { "start": 1, "end": 100, "default": 5 }
+
+void checkerfill() {
+    vec2 coords = t_coords.xy / u_dimensions;
+    ivec2 ic = ivec2(coords);
+
+    int m = 0;
+    if ((ic.x / u_checkerfill_size) % 2 == 0)
+        m += 1;
+    if ((ic.y / u_checkerfill_size) % 2 == 0)
+        m += 1;
+    m = m % 2;
+
+    color_out = vec4(float(m) * vec3(1.), 1.);
+}
+
+
 /// modulefn: chromakey
 /// moduletag: channels
 
@@ -209,6 +220,117 @@ void chromakey() {
     vec2 coords = u_tex_dimensions * t_coords.xy / u_dimensions;
     if (length(color_out.rgb - u_chromakey_key) <= u_chromakey_strength)
         color_out.xyz = texelFetch(u_chromakey_map, ivec2(coords), 0).rgb;
+}
+
+
+/// modulefn: circle_packing
+/// moduletag: color
+
+#define OPCODE_SELECT_CIRCLES 1
+#define OPCODE_RENDER 2
+
+uniform float u_cp_radius_factor; /// { "start": 1, "end": 10, "default": 5 }
+// make sel thresh a fn of radius?
+uniform float u_cp_selection_threshold; /// { "start": 0, "end": 1, "default": 0.25 }
+uniform int u_cp_max_radius; /// { "start": 1, "end": 100, "default": 8 }
+
+uniform sampler2D u_cp_data_texture; /// none
+uniform int u_cp_opcode; /// none
+
+vec4 circle_packing_getImgPx(vec2 coords_) {
+  // vec2 coords = vec2(coords_);
+  // coords *= vec2(u_cp_in_dimensions) / vec2(u_dimensions);
+  // coords.x = float(u_cp_in_dimensions.x) - coords.x;
+  return texelFetch(u_texture, ivec2(coords_), 0);
+}
+
+float circle_packing_getRadius(vec2 coords_) {
+  vec4 color = circle_packing_getImgPx(coords_);
+  float gray_value = 0.3 * color.r + 0.59 * color.g + 0.11 * color.b;
+  float radius = ceil(exp(gray_value * u_cp_radius_factor) /
+                      exp(u_cp_radius_factor) * float(u_cp_max_radius));
+  return radius + 1.0;
+}
+
+void circle_packing() {
+  vec2 coords = gl_FragCoord.xy;
+  switch (u_cp_opcode) {
+  case OPCODE_SELECT_CIRCLES: {
+    ivec2 icoords = ivec2(coords);
+
+    vec4 random_state_local = texelFetch(u_cp_data_texture, icoords, 0);
+    float radius_local = circle_packing_getRadius(coords);
+
+    bool circle_is_active = random_state_local.a > u_cp_selection_threshold;
+    if (circle_is_active) {
+      // find if there are higher priority circles we belong to
+      for (int ix = -1 * 2 * u_cp_max_radius; ix <= 2 * u_cp_max_radius; ix++) {
+        for (int iy = -1 * 2 * u_cp_max_radius; iy <= 2 * u_cp_max_radius;
+             iy++) {
+          ivec2 pcoords = icoords + ivec2(ix, iy);
+          vec4 random_state_remote =
+              texelFetch(u_cp_data_texture, pcoords, 0);
+          if (ix == 0 && iy == 0) {
+            continue;
+          }
+          if (random_state_remote.a > u_cp_selection_threshold) {
+            float radius = circle_packing_getRadius(vec2(pcoords));
+            float dist = length(vec2(ix, iy));
+            if (dist < (radius + radius_local)) {
+              if (random_state_remote.a > random_state_local.a) {
+                circle_is_active = false;
+                break;
+              }
+            }
+          }
+        }
+        if (!circle_is_active) {
+          break;
+        }
+      }
+    }
+
+    color_out.r = radius_local;
+    color_out.g = circle_is_active ? 1.0 : 0.0;
+    color_out.a = 1.0;
+    break;
+  }
+  case OPCODE_RENDER: {
+    ivec2 icoords = ivec2(t_coords.x, t_coords.y);//float(u_dimensions.y) - t_coords.y);
+
+    bool found = false;
+    for (int ix = -1 * u_cp_max_radius; ix <= u_cp_max_radius; ix++) {
+      for (int iy = -1 * u_cp_max_radius; iy <= u_cp_max_radius; iy++) {
+        ivec2 pcoords = icoords + ivec2(ix, iy);
+        vec4 selection_state = texelFetch(u_cp_data_texture, pcoords, 0);
+        float dist = length(vec2(ix, iy));
+        float radius = circle_packing_getRadius(vec2(pcoords));
+        if (selection_state.g > 0.0 && dist <= (selection_state.r + 0.5)) {
+          if (abs(dist - selection_state.r) <= 1.5) {
+            vec4 color = circle_packing_getImgPx(vec2(pcoords));
+            color_out.rgb = color.rgb - vec3(0.05, 0.05, 0.05);
+            found = true;
+          }
+          break;
+        }
+      }
+      if (found) {
+        break;
+      }
+    }
+
+    if (!found) {
+      color_out.r = 1.;
+      color_out.g = 1.;
+      color_out.b = 1.;
+    }
+    color_out.a = 1.0;
+    break;
+  }
+  default: {
+    break;
+  }
+  }
 }
 
 
@@ -263,26 +385,6 @@ uniform sampler2D u_copy_map; /// channel
 void copy() {
     vec2 coords = u_tex_dimensions * t_coords.xy / u_dimensions;
     color_out.xyz += texelFetch(u_copy_map, ivec2(coords), 0).rgb;
-}
-
-
-/// modulefn: checkerfill
-/// moduletag: space
-
-uniform int u_checkerfill_size; /// { "start": 1, "end": 100, "default": 5 }
-
-void checkerfill() {
-    vec2 coords = t_coords.xy / u_dimensions;
-    ivec2 ic = ivec2(coords);
-
-    int m = 0;
-    if ((ic.x / u_checkerfill_size) % 2 == 0)
-        m += 1;
-    if ((ic.y / u_checkerfill_size) % 2 == 0)
-        m += 1;
-    m = m % 2;
-
-    color_out = vec4(float(m) * vec3(1.), 1.);
 }
 
 
@@ -1079,32 +1181,31 @@ void zoom() {
 
 
 void main() {
-    vec2 coords = gl_FragCoord.xy;
-    vec2 c = coords * u_tex_dimensions / u_dimensions;
-    color_out = vec4(u_feedback * texelFetch(u_texture, ivec2(c), 0).xyz, 1.);
+  vec2 coords = gl_FragCoord.xy;
+  vec2 c = coords * u_tex_dimensions / u_dimensions;
+  color_out = vec4(u_feedback * texelFetch(u_texture, ivec2(c), 0).xyz, 1.);
 
-    t_coords = gl_FragCoord.xy / u_dimensions - vec2(0.5) + u_transform_center;
-    t_coords -= vec2(0.5);
+  t_coords = gl_FragCoord.xy / u_dimensions - vec2(0.5) + u_transform_center;
+  t_coords -= vec2(0.5);
 
-    t_coords /= u_transform_scale;
-    mat2 rot_mat = mat2(
-            cos(u_transform_rotation), sin(u_transform_rotation),
-            -sin(u_transform_rotation), cos(u_transform_rotation));
-    t_coords = rot_mat * t_coords;
+  t_coords /= u_transform_scale;
+  mat2 rot_mat = mat2(cos(u_transform_rotation), sin(u_transform_rotation),
+                      -sin(u_transform_rotation), cos(u_transform_rotation));
+  t_coords = rot_mat * t_coords;
 
-    t_coords += vec2(0.5);
-    t_coords *= u_dimensions;
+  t_coords += vec2(0.5);
+  t_coords *= u_dimensions;
 
-    if (u_constrain_to_transform) {
-        if (t_coords.x < 0. || t_coords.x > u_dimensions.x ||
-                t_coords.y < 0. || t_coords.y > u_dimensions.y) {
-            return;
-        }
+  if (u_constrain_to_transform) {
+    if (t_coords.x < 0. || t_coords.x > u_dimensions.x || t_coords.y < 0. ||
+        t_coords.y > u_dimensions.y) {
+      return;
     }
+  }
 
-    switch(u_function) {
-    case FN_RENDER:
-        break;
+  switch (u_function) {
+  case FN_RENDER:
+    break;
 case 1:
     bitfield();
     break;
@@ -1118,117 +1219,122 @@ case 4:
     chromakey();
     break;
 case 5:
-    composite();
+    circle_packing();
     break;
 case 6:
-    condzoom();
+    composite();
     break;
 case 7:
-    copy();
+    condzoom();
     break;
 case 8:
-    enhance();
+    copy();
     break;
 case 9:
-    fourierdraw();
+    enhance();
     break;
 case 10:
-    gamma_correct();
+    fourierdraw();
     break;
 case 11:
-    greyscale();
+    gamma_correct();
     break;
 case 12:
-    halftone();
+    greyscale();
     break;
 case 13:
-    hexswirl();
+    halftone();
     break;
 case 14:
-    hue_shift();
+    hexswirl();
     break;
 case 15:
-    invert_color();
+    hue_shift();
     break;
 case 16:
-    invert_phase();
+    invert_color();
     break;
 case 17:
-    multiply();
+    invert_phase();
     break;
 case 18:
-    noise();
+    multiply();
     break;
 case 19:
-    offset();
+    noise();
     break;
 case 20:
-    oscillator();
+    offset();
     break;
 case 21:
-    picture();
+    oscillator();
     break;
 case 22:
-    pixelate();
+    picture();
     break;
 case 23:
-    polygon();
+    pixelate();
     break;
 case 24:
-    radial();
+    polygon();
     break;
 case 25:
-    recolor();
+    radial();
     break;
 case 26:
-    reduce_colors();
+    recolor();
     break;
 case 27:
-    reflector();
+    reduce_colors();
     break;
 case 28:
-    ripple();
+    reflector();
     break;
 case 29:
-    rotate();
+    ripple();
     break;
 case 30:
-    superformula();
+    rotate();
     break;
 case 31:
-    swirl();
+    superformula();
     break;
 case 32:
-    threshold();
+    swirl();
     break;
 case 33:
-    tile();
+    threshold();
     break;
 case 34:
-    voronoi();
+    tile();
     break;
 case 35:
-    voronoiswirl();
+    voronoi();
     break;
 case 36:
-    waveify();
+    voronoiswirl();
     break;
 case 37:
-    wavy();
+    waveify();
     break;
 case 38:
-    webcam();
+    wavy();
     break;
 case 39:
+    webcam();
+    break;
+case 40:
     zoom();
     break;
 
-    default:
-        // shouldn't happen
-        color_out = vec4(1., 0., 1., 1.);
-        break;
-    }
+  default:
+    // shouldn't happen
+    color_out = vec4(1., 0., 1., 1.);
+    break;
+  }
 
-   color_out = clamp(color_out, -1., 1.);
+  if (!u_no_clamp) {
+    color_out = clamp(color_out, -1., 1.);
+  }
 }
 `;
