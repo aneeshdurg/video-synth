@@ -439,6 +439,7 @@ uniform int u_cp_max_radius; /// { "start": 1, "end": 100, "default": 8 }
 
 uniform sampler2D u_cp_data_texture; /// none
 uniform int u_cp_opcode; /// none
+uniform bool u_cp_randomize; /// { "default": true }
 
 vec4 circle_packing_getImgPx(vec2 coords_) {
   // vec2 coords = vec2(coords_);
@@ -499,7 +500,7 @@ void circle_packing() {
     break;
   }
   case OPCODE_RENDER: {
-    ivec2 icoords = ivec2(t_coords.x, t_coords.y);//float(u_dimensions.y) - t_coords.y);
+    ivec2 icoords = ivec2(coords.x, coords.y);//float(u_dimensions.y) - t_coords.y);
 
     bool found = false;
     for (int ix = -1 * u_cp_max_radius; ix <= u_cp_max_radius; ix++) {
@@ -3220,13 +3221,14 @@ this.params.chromakey_map = chromakey_map;
             id = 5
             params = {}
 
-            constructor(cp_radius_factor, cp_selection_threshold, cp_max_radius, cp_data_texture, cp_opcode, feedback) {
+            constructor(cp_radius_factor, cp_selection_threshold, cp_max_radius, cp_data_texture, cp_opcode, cp_randomize, feedback) {
                 super(feedback || 0);
                 this.params.cp_radius_factor = cp_radius_factor;
 this.params.cp_selection_threshold = cp_selection_threshold;
 this.params.cp_max_radius = cp_max_radius;
 this.params.cp_data_texture = cp_data_texture;
 this.params.cp_opcode = cp_opcode;
+this.params.cp_randomize = cp_randomize;
 
             }
         }
@@ -3242,7 +3244,7 @@ this.params.cp_opcode = cp_opcode;
 
             get_args() {
                 return {
-                    cp_radius_factor: new FloatBar([1,10], 5), cp_selection_threshold: new FloatBar([0,1], 0.25), cp_max_radius: new IntEntry([1,100], 8)
+                    cp_radius_factor: new FloatBar([1,10], 5), cp_selection_threshold: new FloatBar([0,1], 0.25), cp_max_radius: new IntEntry([1,100], 8), cp_randomize: new BoolEntry(true)
                 }
             }
         }
@@ -4253,16 +4255,20 @@ const MODULE_IDS = {"bitfield": {class: "BitfieldElement", tag: "generator"},"bl
 
 // ---------- custommodule.js ----------
 CirclePackingElement.prototype.custom_step = function(time, synth) {
+  let init = false;
   if (!this.random_buffer) {
     this.random_buffer = new Float32Array(4 * synth.dimensions[0] * synth.dimensions[1]);
     this.fn_params.random_buffer = new FrameBufferManager(synth.gl, synth.dimensions);
 
     this.fn_params.dimensions = synth.dimensions;
+    init = true;
   }
-  for (let i = 0; i < this.random_buffer.length; i++) {
-    this.random_buffer[i] = Math.random();
+  if (init || this.fn_params.params.cp_randomize) {
+    for (let i = 0; i < this.random_buffer.length; i++) {
+      this.random_buffer[i] = Math.random();
+    }
+    updateTexture(synth.gl, synth.dimensions, this.fn_params.random_buffer.src(), this.random_buffer);
   }
-  updateTexture(synth.gl, synth.dimensions, this.fn_params.random_buffer.src(), this.random_buffer);
 }
 
 CirclePacking.prototype.custom_render = function(gl, programInfo, params, fbs) {
@@ -4744,6 +4750,7 @@ function setup_channels(ui_container, synth) {
 // ---------- END channelui.js ------
 
 // ---------- saveload.js ----------
+const saveload_script = document.currentScript;
 function loaddata(savedatas, ui_container, synth, into_current) {
     // TODO validation
     const chan_count = synth.channels.length;
@@ -4865,27 +4872,31 @@ function setup_save_load(ui_container, synth, settingsui) {
         0xffffff,
         (4 * synth.dimensions[0] * synth.dimensions[1] - header_len) / 4);
 
+  const getSaveData = () => {
+      const channels = [];
+      for (let i = 0; i < ui_container.children.length; i++) {
+          const ui = ui_container.children[i];
+          const channel = [];
+          for (let j = 0; j < ui.children.length; j++)
+              channel.push(ui.children[j].save());
+          channels.push(channel);
+      }
+
+      const saveobj = {
+          channels: channels,
+          modules: meta_modules,
+          settings: settingsui.save()
+      };
+
+      const savestr = JSON.stringify(saveobj);
+      return savestr;
+    };
+
     document.getElementById("save").addEventListener('click', () => {
-        const channels = [];
-        for (let i = 0; i < ui_container.children.length; i++) {
-            const ui = ui_container.children[i];
-            const channel = [];
-            for (let j = 0; j < ui.children.length; j++)
-                channel.push(ui.children[j].save());
-            channels.push(channel);
-        }
-
-        const saveobj = {
-            channels: channels,
-            modules: meta_modules,
-            settings: settingsui.save()
-        };
-
-        const savestr = JSON.stringify(saveobj);
-
-        const compressed = LZString.compressToUint8Array(savestr)
+        const compressed = LZString.compressToUint8Array(getSaveData())
         console.log(compressed.length);
         console.log(compressed);
+
         const stego_possible = compressed.length < max_stego_size;
         if (compressed.length <= 0xffffff) {
             const required_px = compressed.length + header_len / 4;
@@ -4944,6 +4955,21 @@ function setup_save_load(ui_container, synth, settingsui) {
             const savedata = encodeURI(savestr);
             _download('data:text/plain;charset=utf-8,' + savedata, `${synth.name}.savedata`);
         }
+    });
+
+    document.getElementById("savestandalone").addEventListener('click', async () => {
+      const script_base = await getFile(saveload_script.src);
+      let wrapper = "const load_synth = (canvas, cb) => {"
+      wrapper += script_base;
+      wrapper += "return loadStaticSynth(canvas, " + getSaveData() + ", cb); };"
+      const blob = new Blob([wrapper], {type: 'text/plan;charset=utf-8,'});
+      const elem = document.createElement('a');
+      elem.href = URL.createObjectURL(blob);
+      elem.download = `${synth.name}.standalone.js`;
+      document.body.appendChild(elem);
+      elem.click();
+      document.body.removeChild(elem);
+      //_download('data:text/plain;charset=utf-8,' + encodeURI(wrapper), `${synth.name}.standalone.js`);
     });
 
     const do_load = (name, savedata) => {
@@ -5089,6 +5115,8 @@ ui_container.addEventListener("namechange", () => {
         return {
             name: this.name_inp.value,
             clock: this.clock_inp.value,
+            width: this.render_width_inp.value,
+            height: this.render_height_inp.value,
         };
     }
 
@@ -5097,6 +5125,10 @@ ui_container.addEventListener("namechange", () => {
         this.name_inp.dispatchEvent(new Event("change"));
         this.clock_inp.value = data.clock || 1;
         this.clock_inp.dispatchEvent(new Event("change"));
+        this.render_width_inp.value = data.width || this.render_width_inp.value;
+        this.render_width_inp.dispatchEvent(new Event("change"));
+        this.render_height_inp.value = data.height || this.render_height_inp.value;
+        this.render_height_inp.dispatchEvent(new Event("change"));
     }
 }
 // ---------- END settings.js ------

@@ -118,13 +118,14 @@ this.params.chromakey_map = chromakey_map;
             id = 5
             params = {}
 
-            constructor(cp_radius_factor, cp_selection_threshold, cp_max_radius, cp_data_texture, cp_opcode, feedback) {
+            constructor(cp_radius_factor, cp_selection_threshold, cp_max_radius, cp_data_texture, cp_opcode, cp_randomize, feedback) {
                 super(feedback || 0);
                 this.params.cp_radius_factor = cp_radius_factor;
 this.params.cp_selection_threshold = cp_selection_threshold;
 this.params.cp_max_radius = cp_max_radius;
 this.params.cp_data_texture = cp_data_texture;
 this.params.cp_opcode = cp_opcode;
+this.params.cp_randomize = cp_randomize;
 
             }
         }
@@ -140,7 +141,7 @@ this.params.cp_opcode = cp_opcode;
 
             get_args() {
                 return {
-                    cp_radius_factor: new FloatBar([1,10], 5), cp_selection_threshold: new FloatBar([0,1], 0.25), cp_max_radius: new IntEntry([1,100], 8)
+                    cp_radius_factor: new FloatBar([1,10], 5), cp_selection_threshold: new FloatBar([0,1], 0.25), cp_max_radius: new IntEntry([1,100], 8), cp_randomize: new BoolEntry(true)
                 }
             }
         }
