@@ -78,6 +78,8 @@ ui_container.addEventListener("namechange", () => {
                 alert("Error getting audio: ", err);
             }
         });
+
+        this.synth = synth;
     }
 
     save() {
