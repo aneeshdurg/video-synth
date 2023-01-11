@@ -76,6 +76,7 @@ class BoolEntry extends Type {
         `));
         this.input = this.shadow.querySelector("input");
         this.input.checked = defaultValue;
+        this.value = this.input.checked;
         this.input.addEventListener('change', () => {
             this.value = this.input.checked;
             this.dispatchEvent(new Event('change'));
@@ -83,6 +84,7 @@ class BoolEntry extends Type {
     }
 
     save() {
+        console.log("!!!", this.id, this.value);
         return this.value;
     }
 

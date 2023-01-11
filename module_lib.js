@@ -118,14 +118,16 @@ this.params.chromakey_map = chromakey_map;
             id = 5
             params = {}
 
-            constructor(cp_radius_factor, cp_selection_threshold, cp_max_radius, cp_data_texture, cp_opcode, cp_randomize, feedback) {
+            constructor(cp_radius_factor, cp_selection_threshold, cp_max_radius, cp_draw_radius, cp_data_texture, cp_opcode, cp_randomize, cp_smooth, feedback) {
                 super(feedback || 0);
                 this.params.cp_radius_factor = cp_radius_factor;
 this.params.cp_selection_threshold = cp_selection_threshold;
 this.params.cp_max_radius = cp_max_radius;
+this.params.cp_draw_radius = cp_draw_radius;
 this.params.cp_data_texture = cp_data_texture;
 this.params.cp_opcode = cp_opcode;
 this.params.cp_randomize = cp_randomize;
+this.params.cp_smooth = cp_smooth;
 
             }
         }
@@ -141,7 +143,7 @@ this.params.cp_randomize = cp_randomize;
 
             get_args() {
                 return {
-                    cp_radius_factor: new FloatBar([1,10], 5), cp_selection_threshold: new FloatBar([0,1], 0.25), cp_max_radius: new IntEntry([1,100], 8), cp_randomize: new BoolEntry(true)
+                    cp_radius_factor: new FloatBar([1,10], 5), cp_selection_threshold: new FloatBar([0,1], 0.25), cp_max_radius: new IntEntry([1,100], 8), cp_draw_radius: new FloatBar([0,5], 1.5), cp_randomize: new BoolEntry(true), cp_smooth: new BoolEntry(true)
                 }
             }
         }
@@ -1123,9 +1125,10 @@ this.params.webcam_invert_y = webcam_invert_y;
             id = 40
             params = {}
 
-            constructor(zoom, zoom_center, feedback) {
+            constructor(zoom_x, zoom_y, zoom_center, feedback) {
                 super(feedback || 0);
-                this.params.zoom = zoom;
+                this.params.zoom_x = zoom_x;
+this.params.zoom_y = zoom_y;
 this.params.zoom_center = zoom_center;
 
             }
@@ -1142,7 +1145,7 @@ this.params.zoom_center = zoom_center;
 
             get_args() {
                 return {
-                    zoom: new FloatBar([0,10], 1), zoom_center: new VecEntry(2, ["x","y"], [[0, 1],[0, 1],], [0.5,0.5])
+                    zoom_x: new FloatBar([0,10], 1), zoom_y: new FloatBar([0,10], 1), zoom_center: new VecEntry(2, ["x","y"], [[0, 1],[0, 1],], [0.5,0.5])
                 }
             }
         }

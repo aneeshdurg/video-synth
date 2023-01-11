@@ -367,7 +367,7 @@ uniform int u_blur_stride_x; /// { "start": 1, "end": 100, "default": 1 }
 uniform int u_blur_stride_y; /// { "start": 1, "end": 100, "default": 1 }
 
 void blur() {
-    ivec2 c = ivec2(t_coords.xy);
+    ivec2 c = ivec2(gl_FragCoord.xy);
     vec3 color = vec3(0);
     float size = float(u_blur_stride_y * u_blur_stride_x * 4);
     for (int y = -u_blur_stride_y + 1; y < u_blur_stride_y; y++) {
@@ -423,10 +423,13 @@ uniform float u_cp_radius_factor; /// { "start": 1, "end": 10, "default": 5 }
 // make sel thresh a fn of radius?
 uniform float u_cp_selection_threshold; /// { "start": 0, "end": 1, "default": 0.25 }
 uniform int u_cp_max_radius; /// { "start": 1, "end": 100, "default": 8 }
+uniform float u_cp_draw_radius; /// { "start": 0, "end": 5, "default": 1.5 }
 
 uniform sampler2D u_cp_data_texture; /// none
 uniform int u_cp_opcode; /// none
 uniform bool u_cp_randomize; /// { "default": true }
+                             ///
+uniform bool u_cp_smooth; /// { "default": true }
 
 vec4 circle_packing_getImgPx(vec2 coords_) {
   // vec2 coords = vec2(coords_);
@@ -497,9 +500,12 @@ void circle_packing() {
         float dist = length(vec2(ix, iy));
         float radius = circle_packing_getRadius(vec2(pcoords));
         if (selection_state.g > 0.0 && dist <= (selection_state.r + 0.5)) {
-          if (abs(dist - selection_state.r) <= 1.5) {
+          if (abs(dist - selection_state.r) <= u_cp_draw_radius) {
             vec4 color = circle_packing_getImgPx(vec2(pcoords));
             color_out.rgb = color.rgb - vec3(0.05, 0.05, 0.05);
+            if (u_cp_smooth) {
+              color_out.rgb *= 1. - abs(dist - selection_state.r) / u_cp_draw_radius;
+            }
             found = true;
           }
           break;
@@ -688,9 +694,9 @@ uniform float u_hexswirl_factor; /// { "start": 0, "end": "2 * math.pi", "defaul
 uniform float u_hexswirl_size; /// { "start": 0, "end": "100", "default": 5 }
 
 void hexswirl() {
-    vec2 hex_coords = get_hex_origin(t_coords.xy, u_hexswirl_size);
+    vec2 hex_coords = get_hex_origin(gl_FragCoord.xy, u_hexswirl_size);
     float hex_r = (u_hexswirl_size / 2.)/ cos(5. * PI / 12.);
-    vec2 c = (t_coords.xy - hex_coords) / hex_r;
+    vec2 c = (gl_FragCoord.xy - hex_coords) / hex_r;
     c = 2. * c - 1.;
 
     float r = length(c);
@@ -872,7 +878,7 @@ void picture() {
 uniform int u_pixelate_factor; /// { "start": 0, "end": 500, "default": 10 }
 
 void pixelate() {
-    vec2 coords = t_coords.xy;
+    vec2 coords = gl_FragCoord.xy;
     float f = float(u_pixelate_factor);
     coords = floor(coords / f) * f;
     vec3 color = vec3(0);
@@ -1100,7 +1106,7 @@ void ripple() {
 uniform float u_rotation; /// { "start": 0, "end": "2 * math.pi", "default": 0 }
 
 void rotate() {
-    vec2 coords = t_coords.xy;
+    vec2 coords = gl_FragCoord.xy;
     vec2 c = coords / u_dimensions;
     c = 2. * c - 1.;
 
@@ -1110,7 +1116,7 @@ void rotate() {
     c = r * vec2(cos(theta), sin(theta));
 
     c  = (c + 1.) / 2.;
-    c *= u_tex_dimensions;
+    c *= u_dimensions;
 
     color_out = vec4(u_feedback * texelFetch(u_texture, ivec2(c), 0).xyz, 1.);
 }
@@ -1167,7 +1173,7 @@ void superformula() {
 uniform float u_factor; /// { "start": 0, "end": "2 * math.pi", "default": 0 }
 
 void swirl() {
-    vec2 coords = t_coords.xy;
+    vec2 coords = gl_FragCoord.xy;
     vec2 c = coords / u_dimensions;
     c = 2. * c - 1.;
 
@@ -1312,7 +1318,7 @@ uniform float u_wavy_strength_y; /// { "start": 0, "end": 100, "default": 1 }
 
 
 void wavy() {
-    vec2 coords = t_coords.xy / u_dimensions;
+    vec2 coords = gl_FragCoord.xy / u_dimensions;
     vec2 c = 2. * coords - 1.;
 
     float x_mod =
@@ -1321,10 +1327,10 @@ void wavy() {
         u_wavy_strength_y * sin(u_wavy_freq_y * c.x + u_wavy_c_y);
 
     c = (c + 1.) / 2.;
-    c *= u_tex_dimensions;
+    c *= u_dimensions;
 
-    c.x = mod(c.x + x_mod, u_tex_dimensions.x);
-    c.y = mod(c.y + y_mod, u_tex_dimensions.y);
+    c.x = mod(c.x + x_mod, u_dimensions.x);
+    c.y = mod(c.y + y_mod, u_dimensions.y);
 
     color_out = vec4(u_feedback * texelFetch(u_texture, ivec2(c), 0).xyz, 1.);
 }
@@ -1354,15 +1360,18 @@ void webcam() {
 /// modulefn: zoom
 /// moduletag: space
 
-uniform float u_zoom; /// { "start": 0, "end": 10, "default": 1 }
+uniform float u_zoom_x; /// { "start": 0, "end": 10, "default": 1 }
+uniform float u_zoom_y; /// { "start": 0, "end": 10, "default": 1 }
 uniform vec2 u_zoom_center;  /// { "start": [0, 0], "end": [1, 1], "default": [0.5, 0.5], "names": ["x", "y"] }
 
 void zoom() {
-    vec2 coords = t_coords.xy / u_dimensions;
+    vec2 coords = gl_FragCoord.xy / u_dimensions;
 
     coords = coords - u_zoom_center;
-    if (u_zoom > 0.)
-        coords /= u_zoom;
+    if (u_zoom_x > 0.)
+      coords.x /= u_zoom_x;
+    if (u_zoom_y > 0.)
+      coords.y /= u_zoom_y;
     coords += u_zoom_center;
 
     vec2 c = coords * u_tex_dimensions;
@@ -1610,6 +1619,7 @@ class BoolEntry extends Type {
         `));
         this.input = this.shadow.querySelector("input");
         this.input.checked = defaultValue;
+        this.value = this.input.checked;
         this.input.addEventListener('change', () => {
             this.value = this.input.checked;
             this.dispatchEvent(new Event('change'));
@@ -1617,6 +1627,7 @@ class BoolEntry extends Type {
     }
 
     save() {
+        console.log("!!!", this.id, this.value);
         return this.value;
     }
 
@@ -3002,7 +3013,7 @@ class SynthElementBase extends SynthStageBase {
     build_stage(params) {
         const constructor = this.get_fn();
         this.fn_params = new constructor(...params, 1);
-        return new Stage(this.fn_params, (time, synth) => { this.step(time, synth); });
+        return new Stage(this.fn_params, (time, synth) => { this.step(time, synth); }, this);
     }
 
     onchange(arg, val) {
@@ -3060,7 +3071,7 @@ class TransformElement extends SynthElementBase {
 
     build_stage() {
         this.fn_params = this;
-        return new Stage(this, (t, s) => { this.step(t, s); });
+        return new Stage(this, (t, s) => { this.step(t, s); }, this);
     }
 
     get_args() {
@@ -3209,14 +3220,16 @@ this.params.chromakey_map = chromakey_map;
             id = 5
             params = {}
 
-            constructor(cp_radius_factor, cp_selection_threshold, cp_max_radius, cp_data_texture, cp_opcode, cp_randomize, feedback) {
+            constructor(cp_radius_factor, cp_selection_threshold, cp_max_radius, cp_draw_radius, cp_data_texture, cp_opcode, cp_randomize, cp_smooth, feedback) {
                 super(feedback || 0);
                 this.params.cp_radius_factor = cp_radius_factor;
 this.params.cp_selection_threshold = cp_selection_threshold;
 this.params.cp_max_radius = cp_max_radius;
+this.params.cp_draw_radius = cp_draw_radius;
 this.params.cp_data_texture = cp_data_texture;
 this.params.cp_opcode = cp_opcode;
 this.params.cp_randomize = cp_randomize;
+this.params.cp_smooth = cp_smooth;
 
             }
         }
@@ -3232,7 +3245,7 @@ this.params.cp_randomize = cp_randomize;
 
             get_args() {
                 return {
-                    cp_radius_factor: new FloatBar([1,10], 5), cp_selection_threshold: new FloatBar([0,1], 0.25), cp_max_radius: new IntEntry([1,100], 8), cp_randomize: new BoolEntry(true)
+                    cp_radius_factor: new FloatBar([1,10], 5), cp_selection_threshold: new FloatBar([0,1], 0.25), cp_max_radius: new IntEntry([1,100], 8), cp_draw_radius: new FloatBar([0,5], 1.5), cp_randomize: new BoolEntry(true), cp_smooth: new BoolEntry(true)
                 }
             }
         }
@@ -4214,9 +4227,10 @@ this.params.webcam_invert_y = webcam_invert_y;
             id = 40
             params = {}
 
-            constructor(zoom, zoom_center, feedback) {
+            constructor(zoom_x, zoom_y, zoom_center, feedback) {
                 super(feedback || 0);
-                this.params.zoom = zoom;
+                this.params.zoom_x = zoom_x;
+this.params.zoom_y = zoom_y;
 this.params.zoom_center = zoom_center;
 
             }
@@ -4233,7 +4247,7 @@ this.params.zoom_center = zoom_center;
 
             get_args() {
                 return {
-                    zoom: new FloatBar([0,10], 1), zoom_center: new VecEntry(2, ["x","y"], [[0, 1],[0, 1],], [0.5,0.5])
+                    zoom_x: new FloatBar([0,10], 1), zoom_y: new FloatBar([0,10], 1), zoom_center: new VecEntry(2, ["x","y"], [[0, 1],[0, 1],], [0.5,0.5])
                 }
             }
         }
@@ -4307,7 +4321,7 @@ class ModuleElement extends SynthStageBase {
         let old_name = synth._get_stages(channelid)[module.selection[0]];
         synth._get_stages(channelid)[module.selection[0]] = this.name;
         delete synth._get_stageModules(channelid)[old_name];
-        synth._get_stageModules(channelid)[this.name] = new Stage(this, (t, s) => { this.step(t, s); });
+        synth._get_stageModules(channelid)[this.name] = new Stage(this, (t, s) => { this.step(t, s); }, null);
 
         console.log("removed stage", old_name, module.selection);
 
@@ -4890,8 +4904,10 @@ function setup_save_load(ui_container, synth, settingsui) {
       return savestr;
     };
 
-    document.getElementById("save").addEventListener('click', () => {
-        const compressed = LZString.compressToUint8Array(getSaveData())
+  document.getElementById("save").addEventListener('click', () => {
+        const savedata = getSaveData();
+        console.log("DATA", savedata);
+        const compressed = LZString.compressToUint8Array(savedata)
         console.log(compressed.length);
         console.log(compressed);
 
@@ -5130,9 +5146,10 @@ ui_container.addEventListener("namechange", () => {
 
 // ---------- synth.js ----------
 class Stage {
-    constructor(fn_params, step) {
+    constructor(fn_params, step, controller) {
         this.fn_params = fn_params;
         this.step = step;
+        this.controller = controller;
     }
 }
 
@@ -5287,7 +5304,7 @@ class Synth {
         };
 
         for (let i = 0; i < this.channels.length; i++)
-            process_stages(this.fbs[i], new Stage(this.channels[i], (t, s) => {}), -1);
+            process_stages(this.fbs[i], new Stage(this.channels[i], (t, s) => {}, null), -1);
 
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
         twgl.setUniforms(this.programInfo, {
@@ -5317,6 +5334,9 @@ class Synth {
     add_stage(chan, name, module) {
         if (this.channels[chan].stages.indexOf(name) != -1)
             throw new Error("name collision");
+        if (this.channels[chan].stages.length == 0)
+            if (module.controller)
+                module.controller.feedback_el.set_value(0);
         this.channels[chan].stageModules[name] = module;
         this.channels[chan].stages.push(name);
     }
